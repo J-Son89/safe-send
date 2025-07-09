@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@walletconnect/modal": "^2.7.0",
+    "ethers": "^6.15.0"
+  }
+}
