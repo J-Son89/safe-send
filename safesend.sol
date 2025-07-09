@@ -46,6 +46,10 @@ contract SafeSend {
         uint256 amount
     );
     
+    event DebugLog(string message);
+    
+    event DebugHash(string label, bytes32 hash);
+    
     event DepositCancelled(
         uint256 indexed depositId,
         address indexed depositor,
