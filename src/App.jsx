@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import WalletConnect from './components/WalletConnect'
 
 function App() {
   const [activeTab, setActiveTab] = useState('send')
@@ -72,9 +73,7 @@ function App() {
                     className="input-field w-full"
                   />
                 </div>
-                <button className="btn-primary w-full">
-                  Connect Wallet
-                </button>
+                <WalletConnect />
               </div>
             </div>
           )}
@@ -103,9 +102,7 @@ function App() {
                     className="input-field w-full"
                   />
                 </div>
-                <button className="btn-primary w-full">
-                  Connect Wallet
-                </button>
+                <WalletConnect />
               </div>
             </div>
           )}
@@ -115,9 +112,7 @@ function App() {
               <h2 className="text-xl font-semibold mb-4">Dashboard</h2>
               <div className="text-center text-gray-400">
                 <p>Connect your wallet to view deposits</p>
-                <button className="btn-primary mt-4">
-                  Connect Wallet
-                </button>
+                <WalletConnect />
               </div>
             </div>
           )}
