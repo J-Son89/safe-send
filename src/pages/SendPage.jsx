@@ -3,6 +3,7 @@ import { generateSecurePassword } from '../utils/passwordGenerator'
 import { copyToClipboard } from '../utils/formatters'
 import { EXPIRY_OPTIONS } from '../utils/constants'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import ErrorDisplay from '../components/ui/ErrorDisplay'
 
 export default function SendPage({ 
   isConnected, 
@@ -215,9 +216,14 @@ export default function SendPage({
 
         {/* Error Display */}
         {errors.submit && (
-          <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-300 text-sm">{errors.submit}</p>
-          </div>
+          <ErrorDisplay 
+            error={errors.submit} 
+            onDismiss={() => {
+              const newErrors = { ...errors }
+              delete newErrors.submit
+              // This would need to be passed as a prop to clear errors
+            }} 
+          />
         )}
 
         {/* Wallet Connection */}

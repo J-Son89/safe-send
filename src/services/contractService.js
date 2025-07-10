@@ -1,5 +1,6 @@
 import { Contract, parseEther, formatEther, keccak256, toUtf8Bytes } from 'ethers'
 import SafeSendABI from '../contracts/SafeSend.json'
+import { SafeSendError, ERROR_CODES } from '../utils/errorHandler'
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS
 const SEPOLIA_CHAIN_ID = 11155111
@@ -54,7 +55,7 @@ export class ContractService {
       // Validate network
       const network = await this.provider.getNetwork()
       if (Number(network.chainId) !== SEPOLIA_CHAIN_ID) {
-        throw new Error('Please switch to Sepolia testnet')
+        throw new SafeSendError('Please switch to Sepolia testnet', ERROR_CODES.WRONG_NETWORK)
       }
 
       // Generate password hash
@@ -126,7 +127,23 @@ export class ContractService {
 
     } catch (error) {
       console.error('Error creating deposit:', error)
-      throw error
+      
+      // Enhanced error handling
+      if (error instanceof SafeSendError) {
+        throw error
+      }
+      
+      const errorMessage = error.message || error.toString()
+      
+      if (errorMessage.includes('insufficient funds')) {
+        throw new SafeSendError('Insufficient ETH balance for this transaction', ERROR_CODES.INSUFFICIENT_FUNDS, error)
+      }
+      
+      if (errorMessage.includes('user rejected') || errorMessage.includes('user denied')) {
+        throw new SafeSendError('Transaction was cancelled by user', ERROR_CODES.TRANSACTION_REJECTED, error)
+      }
+      
+      throw new SafeSendError('Failed to create deposit', ERROR_CODES.CONTRACT_ERROR, error)
     }
   }
 
@@ -176,7 +193,7 @@ export class ContractService {
       // Validate network
       const network = await this.provider.getNetwork()
       if (Number(network.chainId) !== SEPOLIA_CHAIN_ID) {
-        throw new Error('Please switch to Sepolia testnet')
+        throw new SafeSendError('Please switch to Sepolia testnet', ERROR_CODES.WRONG_NETWORK)
       }
 
       console.log('Claiming deposit:', { depositId, password })
@@ -197,7 +214,31 @@ export class ContractService {
 
     } catch (error) {
       console.error('Error claiming deposit:', error)
-      throw error
+      
+      // Enhanced error handling
+      if (error instanceof SafeSendError) {
+        throw error
+      }
+      
+      const errorMessage = error.message || error.toString()
+      
+      if (errorMessage.includes('incorrect password') || errorMessage.includes('invalid password')) {
+        throw new SafeSendError('Incorrect password. Please check and try again.', ERROR_CODES.INVALID_PASSWORD, error)
+      }
+      
+      if (errorMessage.includes('already claimed')) {
+        throw new SafeSendError('This deposit has already been claimed.', ERROR_CODES.DEPOSIT_ALREADY_CLAIMED, error)
+      }
+      
+      if (errorMessage.includes('expired')) {
+        throw new SafeSendError('This deposit has expired and can no longer be claimed.', ERROR_CODES.DEPOSIT_EXPIRED, error)
+      }
+      
+      if (errorMessage.includes('user rejected') || errorMessage.includes('user denied')) {
+        throw new SafeSendError('Transaction was cancelled by user', ERROR_CODES.TRANSACTION_REJECTED, error)
+      }
+      
+      throw new SafeSendError('Failed to claim deposit', ERROR_CODES.CONTRACT_ERROR, error)
     }
   }
 
@@ -207,7 +248,7 @@ export class ContractService {
       // Validate network
       const network = await this.provider.getNetwork()
       if (Number(network.chainId) !== SEPOLIA_CHAIN_ID) {
-        throw new Error('Please switch to Sepolia testnet')
+        throw new SafeSendError('Please switch to Sepolia testnet', ERROR_CODES.WRONG_NETWORK)
       }
 
       console.log('Cancelling deposit:', depositId)
