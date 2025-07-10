@@ -70,7 +70,9 @@ export class ContractService {
         recipient: recipientAddress,
         passwordHash,
         expiryMinutes,
-        value: ethAmount + ' ETH'
+        value: ethAmount + ' ETH',
+        valueInWei: value.toString(),
+        contractAddress: this.contract.target
       })
 
       // Call contract function
@@ -86,6 +88,8 @@ export class ContractService {
       // Wait for confirmation
       const receipt = await tx.wait()
       console.log('Transaction confirmed:', receipt)
+      console.log('Gas used:', receipt.gasUsed.toString())
+      console.log('Transaction logs:', receipt.logs.length)
 
       // Extract deposit ID from events
       const depositCreatedEvent = receipt.logs.find(log => {
@@ -289,16 +293,32 @@ export class ContractService {
           if (deposit.depositor.toLowerCase() === userAddress.toLowerCase() || 
               deposit.recipient.toLowerCase() === userAddress.toLowerCase()) {
             const currentTime = Math.floor(Date.now() / 1000)
-            const isExpired = currentTime > Math.floor(deposit.expiryTime.getTime() / 1000)
+            const expiryTimestamp = Math.floor(deposit.expiryTime.getTime() / 1000)
+            const isExpired = currentTime > expiryTimestamp
+            const isRecipient = deposit.recipient.toLowerCase() === userAddress.toLowerCase()
+            const isDepositor = deposit.depositor.toLowerCase() === userAddress.toLowerCase()
             
-            deposits.push({
+            const depositData = {
               id: i,
               ...deposit,
               isExpired,
-              canCancel: !deposit.claimed && !deposit.cancelled && deposit.depositor.toLowerCase() === userAddress.toLowerCase(),
-              canClaim: !deposit.claimed && !deposit.cancelled && !isExpired && deposit.recipient.toLowerCase() === userAddress.toLowerCase(),
-              type: deposit.depositor.toLowerCase() === userAddress.toLowerCase() ? 'sent' : 'received'
+              canCancel: !deposit.claimed && !deposit.cancelled && isDepositor,
+              canClaim: !deposit.claimed && !deposit.cancelled && !isExpired && isRecipient,
+              type: isDepositor ? 'sent' : 'received'
+            }
+            
+            console.log(`Deposit ${i} for user ${userAddress}:`, {
+              depositor: deposit.depositor,
+              recipient: deposit.recipient,
+              claimed: deposit.claimed,
+              cancelled: deposit.cancelled,
+              isExpired,
+              canClaim: depositData.canClaim,
+              canCancel: depositData.canCancel,
+              type: depositData.type
             })
+            
+            deposits.push(depositData)
           }
         } catch (error) {
           console.log(`Deposit ${i} doesn't exist or error fetching:`, error.message)

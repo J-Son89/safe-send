@@ -44,7 +44,26 @@ const formatTimeUntil = (date) => {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState('send')
+  // Get initial tab from URL or default to 'send'
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabFromUrl = urlParams.get('tab')
+    const validTabs = ['send', 'claim', 'reclaim', 'dashboard']
+    return validTabs.includes(tabFromUrl) ? tabFromUrl : 'send'
+  }
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab())
+  
+  // Function to update URL when tab changes
+  const updateActiveTab = (newTab) => {
+    setActiveTab(newTab)
+    
+    // Update URL without page reload
+    const url = new URL(window.location)
+    url.searchParams.set('tab', newTab)
+    window.history.pushState({}, '', url)
+  }
+  
   const [walletState, setWalletState] = useState({
     isConnected: false,
     address: null
@@ -93,8 +112,8 @@ function App() {
 
     // Validate form
     const newErrors = {}
-    if (!sendForm.amount || parseFloat(sendForm.amount) < 0.01) {
-      newErrors.amount = 'Minimum amount is 0.01 ETH'
+    if (!sendForm.amount || parseFloat(sendForm.amount) < 0.011) {
+      newErrors.amount = 'Minimum amount is 0.011 ETH (includes 0.001 ETH notification fee)'
     }
     if (!sendForm.recipient) {
       newErrors.recipient = 'Recipient address is required'
@@ -285,7 +304,9 @@ function App() {
       const allDeposits = await contractService.getAllDepositsForUser(walletState.address)
       const claimable = allDeposits.filter(d => d.canClaim)
       
-      console.log('Found claimable deposits:', claimable)
+      console.log('All deposits for user:', allDeposits)
+      console.log('Filtered claimable deposits:', claimable)
+      console.log('Claimable count:', claimable.length)
       setClaimableDeposits(claimable)
       
     } catch (error) {
@@ -478,6 +499,17 @@ function App() {
     }
   }, [walletState.isConnected, walletState.address, activeTab])
 
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const newTab = getInitialTab()
+      setActiveTab(newTab)
+    }
+    
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   // Filter deposits based on search and filter criteria
   const getFilteredDeposits = () => {
     if (!allDeposits.length) return []
@@ -517,7 +549,7 @@ function App() {
         {/* Navigation Tabs */}
         <div className="flex mb-6 bg-gray-800 rounded-lg p-1">
           <button
-            onClick={() => setActiveTab('send')}
+            onClick={() => updateActiveTab('send')}
             className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'send'
                 ? 'bg-blue-600 text-white'
@@ -527,7 +559,7 @@ function App() {
             Send
           </button>
           <button
-            onClick={() => setActiveTab('claim')}
+            onClick={() => updateActiveTab('claim')}
             className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'claim'
                 ? 'bg-blue-600 text-white'
@@ -537,7 +569,7 @@ function App() {
             Claim
           </button>
           <button
-            onClick={() => setActiveTab('reclaim')}
+            onClick={() => updateActiveTab('reclaim')}
             className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'reclaim'
                 ? 'bg-blue-600 text-white'
@@ -547,7 +579,7 @@ function App() {
             Reclaim
           </button>
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => updateActiveTab('dashboard')}
             className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'dashboard'
                 ? 'bg-blue-600 text-white'
@@ -606,8 +638,8 @@ function App() {
                   <input
                     type="number"
                     step="0.001"
-                    min="0.01"
-                    placeholder="0.01"
+                    min="0.011"
+                    placeholder="0.011"
                     value={sendForm.amount}
                     onChange={(e) => setSendForm(prev => ({ ...prev, amount: e.target.value }))}
                     className={`input-field w-full ${errors.amount ? 'border-red-500' : ''}`}
@@ -615,7 +647,7 @@ function App() {
                   />
                   {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
                   <p className="text-xs text-gray-500 mt-1">
-                    Minimum: 0.01 ETH (includes 0.001 ETH notification fee)
+                    Minimum: 0.011 ETH (0.001 ETH sent immediately as notification, rest held until claimed)
                   </p>
                 </div>
                 <div>
@@ -732,7 +764,18 @@ function App() {
 
           {activeTab === 'claim' && (
             <div>
-              <h2 className="text-xl font-semibold mb-4">Claim ETH</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Claim ETH</h2>
+                {walletState.isConnected && (
+                  <button 
+                    onClick={loadClaimableDeposits}
+                    disabled={claimableLoading}
+                    className="btn-secondary text-sm px-3 py-1"
+                  >
+                    {claimableLoading ? '⏳' : '🔄'} Refresh
+                  </button>
+                )}
+              </div>
               <p className="text-gray-400 text-sm mb-4">
                 Enter the password for each deposit to claim your ETH
               </p>
@@ -763,6 +806,11 @@ function App() {
                       <p className="text-sm text-gray-500 mt-1">
                         Deposits sent to you will appear here
                       </p>
+                      <div className="mt-3 p-3 bg-gray-800/50 rounded text-left text-xs">
+                        <p className="text-gray-400 mb-1">Debug info:</p>
+                        <p>Connected address: {walletState.address}</p>
+                        <p>Check browser console for detailed logs</p>
+                      </div>
                     </div>
                   ) : (
                     claimableDeposits.map((deposit) => (
@@ -1067,7 +1115,7 @@ function App() {
                           <div className="flex gap-2">
                             {deposit.canClaim && (
                               <button 
-                                onClick={() => setActiveTab('claim')}
+                                onClick={() => updateActiveTab('claim')}
                                 className="btn-primary text-sm px-3 py-1"
                               >
                                 💰 Claim
