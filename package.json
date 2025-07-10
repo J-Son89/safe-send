@@ -14,13 +14,15 @@
     "start": "serve -s dist"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.4",
     "@walletconnect/modal": "^2.7.0",
     "@web3modal/ethers": "^5.1.11",
     "@web3modal/wagmi": "^5.1.11",
     "buffer": "^6.0.3",
     "ethers": "^6.15.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "serve": "^14.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
