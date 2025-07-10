@@ -4,7 +4,8 @@ import WalletConnect from './components/WalletConnect'
 import SendForm from './components/SendForm'
 import ContractService from './services/contractService'
 import { modal } from './utils/walletConnect'
-import { Dialog } from '@headlessui/react';
+import { Dialog } from '@headlessui/react'
+import { generateSecurePassword } from './utils/passwordGenerator'
 
 function OnboardingModal({ open, onClose }) {
   const [showAgain, setShowAgain] = useState(true);
@@ -67,14 +68,6 @@ const Step = ({ icon, title, desc }) => (
   </div>
 );
 
-// Simple password generation function
-const generatePassword = () => {
-  const words = ['apple', 'brave', 'cloud', 'dream', 'earth', 'flame', 'globe', 'happy', 'island', 'jungle']
-  const numbers = Math.floor(Math.random() * 100)
-  const word1 = words[Math.floor(Math.random() * words.length)]
-  const word2 = words[Math.floor(Math.random() * words.length)]
-  return `${word1}-${word2}-${numbers}`
-}
 
 // Format time ago
 const formatTimeAgo = (date) => {
@@ -169,7 +162,7 @@ function App() {
   })
 
   const handleGeneratePassword = () => {
-    const newPassword = generatePassword()
+    const newPassword = generateSecurePassword()
     setSendForm(prev => ({ ...prev, password: newPassword }))
   }
 
@@ -716,35 +709,65 @@ function App() {
 
               {txResult && (
                 <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-                  <p className="text-green-300 font-medium">✅ Deposit Created!</p>
-                  <p className="text-sm text-gray-300 mt-1">
-                    Deposit ID: <span className="font-mono text-blue-300">{txResult.depositId}</span>
-                  </p>
-                  <div className="text-sm text-gray-300 mt-2">
-                    <p className="mb-1">Transaction:</p>
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${txResult.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline font-mono text-xs break-all"
-                    >
-                      {txResult.txHash}
-                    </a>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-green-300 font-medium text-lg">✅ Deposit Created Successfully!</p>
                   </div>
-                  <div className="text-sm text-gray-300 mt-2">
-                    <p className="mb-1">Contract:</p>
-                    <a
-                      href={`https://sepolia.etherscan.io/address/${import.meta.env.VITE_CONTRACT_ADDRESS}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline font-mono text-xs break-all"
-                    >
-                      {import.meta.env.VITE_CONTRACT_ADDRESS}
-                    </a>
+                  
+                  <div className="grid grid-cols-1 gap-3 text-sm">
+                    {/* Deposit Details */}
+                    <div className="bg-gray-800/50 rounded p-3">
+                      <p className="text-blue-300 font-medium mb-2">📋 Deposit Details:</p>
+                      <div className="space-y-1 text-gray-300">
+                        <p>• ID: <span className="font-mono text-blue-300">#{txResult.depositId}</span></p>
+                        <p>• Amount: <span className="text-green-400">{sendForm.amount} ETH</span></p>
+                        <p>• To: <span className="font-mono">{sendForm.recipient.slice(0,8)}...{sendForm.recipient.slice(-6)}</span></p>
+                        <p>• Expires: <span className="text-yellow-400">{sendForm.expiryMinutes} minutes</span></p>
+                        <p>• Password: <span className="font-mono text-purple-300">{sendForm.password}</span></p>
+                      </div>
+                    </div>
+                    
+                    {/* Fee Breakdown */}
+                    <div className="bg-gray-800/50 rounded p-3">
+                      <p className="text-blue-300 font-medium mb-2">💰 Fee Breakdown:</p>
+                      <div className="space-y-1 text-gray-300">
+                        <p>• Notification sent: <span className="text-green-400">{contractConstants.notificationAmount} ETH</span></p>
+                        <p>• Platform fee: <span className="text-orange-400">{contractConstants.platformFeePercent}%</span></p>
+                        <p>• Gas used: <span className="text-gray-400">{txResult.gasUsed ? `${(parseInt(txResult.gasUsed) / 1000).toFixed(1)}k` : 'N/A'}</span></p>
+                      </div>
+                    </div>
+                    
+                    {/* Next Steps */}
+                    <div className="bg-blue-900/30 rounded p-3">
+                      <p className="text-blue-300 font-medium mb-2">📤 Next Steps:</p>
+                      <div className="space-y-1 text-gray-300 text-xs">
+                        <p>1. Share Deposit ID <span className="font-mono text-blue-300">#{txResult.depositId}</span> with recipient</p>
+                        <p>2. Share password <span className="font-mono text-purple-300">{sendForm.password}</span> with recipient</p>
+                        <p>3. Recipient uses Claim tab to get their ETH</p>
+                        <p>4. You can cancel anytime in Reclaim tab if needed</p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    🔗 Click links to view on Sepolia Explorer
-                  </p>
+                  
+                  <div className="mt-3 pt-3 border-t border-gray-600">
+                    <div className="flex gap-4 text-xs">
+                      <a
+                        href={`https://sepolia.etherscan.io/tx/${txResult.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline"
+                      >
+                        🔗 View Transaction
+                      </a>
+                      <a
+                        href={`https://sepolia.etherscan.io/address/${import.meta.env.VITE_CONTRACT_ADDRESS}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline"
+                      >
+                        🔗 View Contract
+                      </a>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -816,21 +839,22 @@ function App() {
                   {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password}</p>}
 
                   {sendForm.password && (
-                    <div className="mt-2 p-2 bg-gray-700 rounded border-l-4 border-blue-500">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-mono text-blue-300">{sendForm.password}</span>
+                    <div className="mt-2 p-3 bg-gray-700 rounded border-l-4 border-blue-500">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-mono text-blue-300 select-all">{sendForm.password}</span>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(sendForm.password)}
-                          className="text-xs text-blue-400 hover:text-blue-300"
+                          className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 bg-blue-900/30 rounded"
                           disabled={isLoading}
                         >
-                          Copy
+                          📋 Copy
                         </button>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Share this password with the recipient
-                      </p>
+                      
+                      <div className="text-xs text-gray-400">
+                        <p>📤 Share this with the recipient</p>
+                      </div>
                     </div>
                   )}
                 </div>

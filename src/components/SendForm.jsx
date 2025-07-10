@@ -1,15 +1,7 @@
 import { useState } from 'react'
 import { BrowserProvider } from 'ethers'
 import ContractService from '../services/contractService'
-
-// Simple password generation function
-const generatePassword = () => {
-  const words = ['apple', 'brave', 'cloud', 'dream', 'earth', 'flame', 'globe', 'happy', 'island', 'jungle']
-  const numbers = Math.floor(Math.random() * 100)
-  const word1 = words[Math.floor(Math.random() * words.length)]
-  const word2 = words[Math.floor(Math.random() * words.length)]
-  return `${word1}-${word2}-${numbers}`
-}
+import { generateSecurePassword } from '../utils/passwordGenerator'
 
 export default function SendForm({ isConnected, account }) {
   const [formData, setFormData] = useState({
@@ -24,7 +16,7 @@ export default function SendForm({ isConnected, account }) {
   const [txResult, setTxResult] = useState(null)
 
   const handleGenerate = () => {
-    const newPassword = generatePassword()
+    const newPassword = generateSecurePassword()
     setFormData(prev => ({ ...prev, password: newPassword }))
     setShowPassword(true)
   }
