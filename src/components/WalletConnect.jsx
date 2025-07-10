@@ -1,46 +1,8 @@
-import { createWeb3Modal, defaultConfig } from '@web3modal/ethers'
 import { useEffect, useState } from 'react'
 import { BrowserProvider } from 'ethers'
+import { modal } from '../utils/walletConnect'
 
-// 1. Get projectId from env vars
-const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
-
-// 2. Set chains
-const sepolia = {
-  chainId: 11155111,
-  name: 'Sepolia',
-  currency: 'ETH',
-  explorerUrl: 'https://sepolia.etherscan.io',
-  rpcUrl: import.meta.env.VITE_SEPOLIA_RPC || 'https://rpc.sepolia.org'
-}
-
-// 3. Create a metadata object
-const metadata = {
-  name: 'SafeSend',
-  description: 'Secure ETH transfers with password verification',
-  url: 'https://safesend.app', 
-  icons: ['https://safesend.app/icon.png']
-}
-
-// 4. Create Ethers config
-const ethersConfig = defaultConfig({
-  metadata,
-  enableEIP6963: true,
-  enableInjected: true,
-  enableCoinbase: true,
-  rpcUrl: import.meta.env.VITE_SEPOLIA_RPC || 'https://rpc.sepolia.org',
-  defaultChainId: 11155111
-})
-
-// 5. Create a Web3Modal instance
-const modal = createWeb3Modal({
-  ethersConfig,
-  chains: [sepolia],
-  projectId,
-  enableAnalytics: true
-})
-
-export default function WalletConnect() {
+export default function WalletConnect({ onConnectionChange }) {
   const [isConnected, setIsConnected] = useState(false)
   const [address, setAddress] = useState('')
   const [balance, setBalance] = useState('0')
@@ -78,6 +40,9 @@ export default function WalletConnect() {
         setAddress(address)
         setChainId(chainId)
         
+        // Notify parent component
+        onConnectionChange?.({ isConnected: true, address })
+        
         // Get provider and update balance
         const walletProvider = modal.getWalletProvider()
         if (walletProvider) {
@@ -88,6 +53,9 @@ export default function WalletConnect() {
         setAddress('')
         setBalance('0')
         setChainId(null)
+        
+        // Notify parent component
+        onConnectionChange?.({ isConnected: false, address: null })
       }
     })
 
@@ -102,6 +70,8 @@ export default function WalletConnect() {
       setBalance((Number(balance) / 1e18).toFixed(4))
     } catch (error) {
       console.error('Error getting balance:', error)
+      // Set a placeholder balance if RPC fails
+      setBalance('--')
     }
   }
 
