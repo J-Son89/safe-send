@@ -1,4 +1,4 @@
-import { formatTimeAgo, formatTimeUntil } from '../utils/formatters'
+import { formatTimeAgo, formatTimeUntil, copyToClipboard } from '../utils/formatters'
 import { TAB_NAMES, DEPOSIT_FILTER_TYPES, DEPOSIT_TYPES } from '../utils/constants'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
@@ -105,12 +105,21 @@ export default function HistoryPage({
                         {deposit.type === DEPOSIT_TYPES.SENT ? '📤 Sent' : '📥 Received'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-400">
-                      {deposit.type === DEPOSIT_TYPES.SENT ?
-                        `To: ${deposit.recipient.slice(0, 6)}...${deposit.recipient.slice(-4)}` :
-                        `From: ${deposit.depositor.slice(0, 6)}...${deposit.depositor.slice(-4)}`
-                      }
-                    </p>
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <span>
+                        {deposit.type === DEPOSIT_TYPES.SENT ?
+                          `To: ${deposit.recipient.slice(0, 6)}...${deposit.recipient.slice(-4)}` :
+                          `From: ${deposit.depositor.slice(0, 6)}...${deposit.depositor.slice(-4)}`
+                        }
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(deposit.type === DEPOSIT_TYPES.SENT ? deposit.recipient : deposit.depositor)}
+                        className="text-blue-400 hover:text-blue-300 text-xs px-1 py-0.5 rounded hover:bg-blue-900/30"
+                        title="Copy address"
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
