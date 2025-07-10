@@ -270,6 +270,48 @@ export class ContractService {
       throw error
     }
   }
+
+  // Get all deposits for a user (both sent and received)
+  async getAllDepositsForUser(userAddress) {
+    try {
+      const deposits = []
+      
+      // Get the next deposit ID to know how many deposits exist
+      const nextDepositId = await this.readOnlyContract.nextDepositId()
+      console.log('Total deposits to check:', nextDepositId.toString())
+      
+      // Check each deposit to see if it involves the user
+      for (let i = 0; i < Number(nextDepositId); i++) {
+        try {
+          const deposit = await this.getDeposit(i)
+          
+          // If this deposit was created by the user OR sent to the user, add it to the list
+          if (deposit.depositor.toLowerCase() === userAddress.toLowerCase() || 
+              deposit.recipient.toLowerCase() === userAddress.toLowerCase()) {
+            const currentTime = Math.floor(Date.now() / 1000)
+            const isExpired = currentTime > Math.floor(deposit.expiryTime.getTime() / 1000)
+            
+            deposits.push({
+              id: i,
+              ...deposit,
+              isExpired,
+              canCancel: !deposit.claimed && !deposit.cancelled && deposit.depositor.toLowerCase() === userAddress.toLowerCase(),
+              canClaim: !deposit.claimed && !deposit.cancelled && !isExpired && deposit.recipient.toLowerCase() === userAddress.toLowerCase(),
+              type: deposit.depositor.toLowerCase() === userAddress.toLowerCase() ? 'sent' : 'received'
+            })
+          }
+        } catch (error) {
+          console.log(`Deposit ${i} doesn't exist or error fetching:`, error.message)
+        }
+      }
+      
+      // Sort by deposit ID (newest first)
+      return deposits.sort((a, b) => b.id - a.id)
+    } catch (error) {
+      console.error('Error getting all user deposits:', error)
+      throw error
+    }
+  }
 }
 
 export default ContractService
