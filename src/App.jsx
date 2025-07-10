@@ -14,6 +14,35 @@ const generatePassword = () => {
   return `${word1}-${word2}-${numbers}`
 }
 
+// Format time ago
+const formatTimeAgo = (date) => {
+  const now = new Date()
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  
+  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+  if (diffMins > 0) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`
+  return 'Just now'
+}
+
+// Format time until
+const formatTimeUntil = (date) => {
+  const now = new Date()
+  const diffMs = date - now
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  
+  if (diffMs <= 0) return 'Expired'
+  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''}`
+  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''}`
+  if (diffMins > 0) return `${diffMins} min${diffMins > 1 ? 's' : ''}`
+  return 'Less than 1 min'
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('send')
   const [walletState, setWalletState] = useState({
@@ -31,6 +60,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [txResult, setTxResult] = useState(null)
   const [errors, setErrors] = useState({})
+  
+  // Reclaim tab state
+  const [userDeposits, setUserDeposits] = useState([])
+  const [depositsLoading, setDepositsLoading] = useState(false)
 
   const handleGeneratePassword = () => {
     const newPassword = generatePassword()
@@ -109,6 +142,11 @@ function App() {
         password: '',
         expiryMinutes: '30'
       })
+      
+      // If user is on reclaim tab, refresh deposits
+      if (activeTab === 'reclaim') {
+        loadUserDeposits()
+      }
 
     } catch (error) {
       console.error('Send error:', error)
@@ -121,6 +159,45 @@ function App() {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
     alert('Copied to clipboard!')
+  }
+
+  const loadUserDeposits = async () => {
+    if (!walletState.isConnected || !walletState.address) {
+      return
+    }
+
+    setDepositsLoading(true)
+    try {
+      // Use MetaMask if available, otherwise fall back to WalletConnect
+      let provider
+      
+      if (window.ethereum) {
+        provider = new BrowserProvider(window.ethereum)
+      } else {
+        const walletProvider = modal.getWalletProvider()
+        if (!walletProvider) {
+          throw new Error('No wallet provider found')
+        }
+        provider = new BrowserProvider(walletProvider)
+      }
+      
+      const signer = await provider.getSigner()
+      const contractService = new ContractService(provider, signer)
+      
+      console.log('Loading deposits for user:', walletState.address)
+      
+      // Get user's deposits
+      const deposits = await contractService.getDepositsForUser(walletState.address)
+      
+      console.log('Found deposits:', deposits)
+      setUserDeposits(deposits)
+      
+    } catch (error) {
+      console.error('Error loading deposits:', error)
+      setUserDeposits([])
+    } finally {
+      setDepositsLoading(false)
+    }
   }
 
   const handleReclaimETH = async (depositId) => {
@@ -155,7 +232,8 @@ function App() {
       
       alert(`✅ Deposit #${depositId} cancelled successfully!\nTX: ${result.txHash}`)
       
-      // Refresh the page or update state to show the deposit is cancelled
+      // Reload deposits to show updated status
+      loadUserDeposits()
       
     } catch (error) {
       console.error('Reclaim error:', error)
@@ -224,6 +302,13 @@ function App() {
       })
     }
   }, [])
+
+  // Load user deposits when wallet connects or reclaim tab is activated
+  useEffect(() => {
+    if (walletState.isConnected && activeTab === 'reclaim') {
+      loadUserDeposits()
+    }
+  }, [walletState.isConnected, walletState.address, activeTab])
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -502,54 +587,62 @@ function App() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Mock deposit example - we'll replace with real data later */}
-                  <div className="border border-gray-600 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium">Deposit #42</p>
-                        <p className="text-sm text-gray-400">To: 0x1234...5678</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-orange-400">0.05 ETH</p>
-                        <p className="text-xs text-red-400">Expired</p>
-                      </div>
+                  {depositsLoading ? (
+                    <div className="text-center text-gray-400">
+                      <p>⏳ Loading your deposits...</p>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-xs text-gray-500">
-                        Created: 2 hours ago • Expired: 30 min ago
+                  ) : userDeposits.length === 0 ? (
+                    <div className="text-center text-gray-400">
+                      <p>No deposits found</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Deposits you create will appear here
                       </p>
-                      <button 
-                        onClick={() => handleReclaimETH(42)}
-                        className="btn-secondary text-sm px-3 py-1"
-                      >
-                        🔄 Reclaim ETH
-                      </button>
                     </div>
-                  </div>
-                  
-                  <div className="border border-gray-600 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium">Deposit #41</p>
-                        <p className="text-sm text-gray-400">To: 0x9876...5432</p>
+                  ) : (
+                    userDeposits.map((deposit) => (
+                      <div key={deposit.id} className="border border-gray-600 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-medium">Deposit #{deposit.id}</p>
+                            <p className="text-sm text-gray-400">
+                              To: {deposit.recipient.slice(0, 6)}...{deposit.recipient.slice(-4)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
+                            <p className={`text-xs ${
+                              deposit.claimed ? 'text-green-400' : 
+                              deposit.cancelled ? 'text-gray-400' : 
+                              deposit.isExpired ? 'text-red-400' : 
+                              'text-green-400'
+                            }`}>
+                              {deposit.claimed ? 'Claimed' : 
+                               deposit.cancelled ? 'Cancelled' : 
+                               deposit.isExpired ? 'Expired' : 
+                               'Active'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs text-gray-500">
+                            Expires: {deposit.expiryTime.toLocaleString()} • 
+                            {deposit.isExpired ? 
+                              `Expired ${formatTimeAgo(deposit.expiryTime)}` : 
+                              `Expires in ${formatTimeUntil(deposit.expiryTime)}`
+                            }
+                          </p>
+                          {deposit.canCancel && (
+                            <button 
+                              onClick={() => handleReclaimETH(deposit.id)}
+                              className="btn-secondary text-sm px-3 py-1"
+                            >
+                              🔄 {deposit.isExpired ? 'Reclaim ETH' : 'Cancel Deposit'}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-green-400">0.02 ETH</p>
-                        <p className="text-xs text-green-400">Active</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-xs text-gray-500">
-                        Created: 25 min ago • Expires in 5 min
-                      </p>
-                      <button 
-                        onClick={() => handleReclaimETH(41)}
-                        className="btn-secondary text-sm px-3 py-1"
-                      >
-                        🔄 Cancel Deposit
-                      </button>
-                    </div>
-                  </div>
+                    ))
+                  )}
                   
                   <div className="text-center text-gray-500 text-sm">
                     <p>💡 You can cancel any deposit you created at any time</p>

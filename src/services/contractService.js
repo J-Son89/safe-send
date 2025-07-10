@@ -232,6 +232,44 @@ export class ContractService {
       throw error
     }
   }
+
+  // Get deposits for a specific depositor (sender)
+  async getDepositsForUser(userAddress) {
+    try {
+      const deposits = []
+      
+      // Get the next deposit ID to know how many deposits exist
+      const nextDepositId = await this.readOnlyContract.nextDepositId()
+      console.log('Total deposits to check:', nextDepositId.toString())
+      
+      // Check each deposit to see if it belongs to the user
+      for (let i = 0; i < Number(nextDepositId); i++) {
+        try {
+          const deposit = await this.getDeposit(i)
+          
+          // If this deposit was created by the user, add it to the list
+          if (deposit.depositor.toLowerCase() === userAddress.toLowerCase()) {
+            const currentTime = Math.floor(Date.now() / 1000)
+            const isExpired = currentTime > Math.floor(deposit.expiryTime.getTime() / 1000)
+            
+            deposits.push({
+              id: i,
+              ...deposit,
+              isExpired,
+              canCancel: !deposit.claimed && !deposit.cancelled
+            })
+          }
+        } catch (error) {
+          console.log(`Deposit ${i} doesn't exist or error fetching:`, error.message)
+        }
+      }
+      
+      return deposits
+    } catch (error) {
+      console.error('Error getting user deposits:', error)
+      throw error
+    }
+  }
 }
 
 export default ContractService
