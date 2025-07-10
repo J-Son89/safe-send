@@ -1,8 +1,35 @@
 import { useState } from 'react'
+import { BrowserProvider } from 'ethers'
 import WalletConnect from './components/WalletConnect'
+import SendForm from './components/SendForm'
+import ContractService from './services/contractService'
+
+// Simple password generation function
+const generatePassword = () => {
+  const words = ['apple', 'brave', 'cloud', 'dream', 'earth', 'flame', 'globe', 'happy', 'island', 'jungle']
+  const numbers = Math.floor(Math.random() * 100)
+  const word1 = words[Math.floor(Math.random() * words.length)]
+  const word2 = words[Math.floor(Math.random() * words.length)]
+  return `${word1}-${word2}-${numbers}`
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState('send')
+  const [walletState, setWalletState] = useState({
+    isConnected: false,
+    address: null
+  })
+  
+  // Send form state
+  const [sendForm, setSendForm] = useState({
+    amount: '',
+    recipient: '',
+    password: '',
+    expiryMinutes: '30'
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [txResult, setTxResult] = useState(null)
+  const [errors, setErrors] = useState({})
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -59,9 +86,14 @@ function App() {
                   </label>
                   <input
                     type="number"
+                    step="0.001"
+                    min="0.01"
                     placeholder="0.01"
                     className="input-field w-full"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Minimum: 0.01 ETH (includes 0.001 ETH notification fee)
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -73,7 +105,43 @@ function App() {
                     className="input-field w-full"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Password
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Click generate or enter manually"
+                      className="input-field flex-1"
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary px-3 py-2 text-sm"
+                    >
+                      Generate
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Expires in
+                  </label>
+                  <select className="input-field w-full">
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                    <option value="360">6 hours</option>
+                    <option value="720">12 hours</option>
+                    <option value="1440">24 hours</option>
+                  </select>
+                </div>
+                
                 <WalletConnect />
+                
+                <button className="btn-primary w-full text-lg font-semibold">
+                  🚀 Send ETH
+                </button>
               </div>
             </div>
           )}

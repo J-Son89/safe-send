@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { BrowserProvider } from 'ethers'
+import ContractService from '../services/contractService'
 
-// Simple password generation function - will enhance later
+// Simple password generation function
 const generatePassword = () => {
   const words = ['apple', 'brave', 'cloud', 'dream', 'earth', 'flame', 'globe', 'happy', 'island', 'jungle']
   const numbers = Math.floor(Math.random() * 100)
@@ -9,7 +11,7 @@ const generatePassword = () => {
   return `${word1}-${word2}-${numbers}`
 }
 
-export default function SendForm() {
+export default function SendForm({ isConnected, account }) {
   const [formData, setFormData] = useState({
     amount: '',
     recipient: '',
@@ -18,6 +20,8 @@ export default function SendForm() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [txResult, setTxResult] = useState(null)
 
   const handleGenerate = () => {
     const newPassword = generatePassword()
@@ -25,9 +29,14 @@ export default function SendForm() {
     setShowPassword(true)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
+    if (!isConnected) {
+      alert('Please connect your wallet first')
+      return
+    }
+
     // Basic validation
     const newErrors = {}
     if (!formData.amount || parseFloat(formData.amount) < 0.01) {
@@ -45,14 +54,43 @@ export default function SendForm() {
       return
     }
 
-    // Mock send logic
-    alert(`Mock Send:
-Amount: ${formData.amount} ETH
-To: ${formData.recipient}
-Password: ${formData.password}
-Expires in: ${formData.expiryMinutes} minutes
-    
-In real app: This would create a deposit on the blockchain!`)
+    setIsLoading(true)
+    setErrors({})
+    setTxResult(null)
+
+    try {
+      // Get provider and signer
+      const provider = new BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      
+      // Create contract service
+      const contractService = new ContractService(provider, signer)
+      
+      // Create deposit
+      const result = await contractService.createDeposit(
+        formData.recipient,
+        formData.password,
+        parseInt(formData.expiryMinutes),
+        formData.amount
+      )
+
+      setTxResult(result)
+      
+      // Reset form on success
+      setFormData({
+        amount: '',
+        recipient: '',
+        password: '',
+        expiryMinutes: '30'
+      })
+      setShowPassword(false)
+
+    } catch (error) {
+      console.error('Send error:', error)
+      setErrors({ submit: error.message })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const copyToClipboard = (text) => {
@@ -60,9 +98,29 @@ In real app: This would create a deposit on the blockchain!`)
     alert('Copied to clipboard!')
   }
 
+  if (!isConnected) {
+    return (
+      <div className="text-center text-gray-400">
+        <p>Connect your wallet to send ETH</p>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Send ETH</h2>
+      
+      {txResult && (
+        <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+          <p className="text-green-300 font-medium">✅ Deposit Created!</p>
+          <p className="text-sm text-gray-300 mt-1">
+            Deposit ID: <span className="font-mono">{txResult.depositId}</span>
+          </p>
+          <p className="text-sm text-gray-300">
+            TX: <span className="font-mono text-xs">{txResult.txHash}</span>
+          </p>
+        </div>
+      )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Amount Input */}
@@ -78,6 +136,7 @@ In real app: This would create a deposit on the blockchain!`)
             value={formData.amount}
             onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
             className={`input-field w-full ${errors.amount ? 'border-red-500' : ''}`}
+            disabled={isLoading}
           />
           {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
           <p className="text-xs text-gray-500 mt-1">
@@ -96,6 +155,7 @@ In real app: This would create a deposit on the blockchain!`)
             value={formData.recipient}
             onChange={(e) => setFormData(prev => ({ ...prev, recipient: e.target.value }))}
             className={`input-field w-full ${errors.recipient ? 'border-red-500' : ''}`}
+            disabled={isLoading}
           />
           {errors.recipient && <p className="text-red-400 text-sm mt-1">{errors.recipient}</p>}
         </div>
@@ -112,11 +172,13 @@ In real app: This would create a deposit on the blockchain!`)
               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
               className={`input-field flex-1 ${errors.password ? 'border-red-500' : ''}`}
               placeholder="Click generate or enter manually"
+              disabled={isLoading}
             />
             <button
               type="button"
               onClick={handleGenerate}
               className="btn-secondary px-3 py-2 text-sm"
+              disabled={isLoading}
             >
               Generate
             </button>
@@ -131,6 +193,7 @@ In real app: This would create a deposit on the blockchain!`)
                   type="button"
                   onClick={() => copyToClipboard(formData.password)}
                   className="text-xs text-blue-400 hover:text-blue-300"
+                  disabled={isLoading}
                 >
                   Copy
                 </button>
@@ -151,6 +214,7 @@ In real app: This would create a deposit on the blockchain!`)
             value={formData.expiryMinutes}
             onChange={(e) => setFormData(prev => ({ ...prev, expiryMinutes: e.target.value }))}
             className="input-field w-full"
+            disabled={isLoading}
           >
             <option value="30">30 minutes</option>
             <option value="60">1 hour</option>
@@ -161,12 +225,20 @@ In real app: This would create a deposit on the blockchain!`)
           </select>
         </div>
 
+        {/* Error Display */}
+        {errors.submit && (
+          <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+            <p className="text-red-300 text-sm">{errors.submit}</p>
+          </div>
+        )}
+
         {/* Submit Button */}
         <button
           type="submit"
           className="btn-primary w-full"
+          disabled={isLoading}
         >
-          Send ETH (Mock)
+          {isLoading ? 'Sending...' : 'Send ETH'}
         </button>
       </form>
     </div>

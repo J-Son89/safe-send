@@ -129,7 +129,7 @@ contract SafeSend {
         emit DebugLog("Step 6: Not expired");
         
         // Verify password hash
-        bytes32 computedHash = keccak256(abi.encodePacked(password, deposit.recipient, depositId));
+        bytes32 computedHash = keccak256(abi.encodePacked(password));
         emit DebugHash("Computed hash", computedHash);
         emit DebugHash("Stored hash", deposit.passwordHash);
         

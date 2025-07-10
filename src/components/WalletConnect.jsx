@@ -2,8 +2,8 @@ import { createWeb3Modal, defaultConfig } from '@web3modal/ethers'
 import { useEffect, useState } from 'react'
 import { BrowserProvider } from 'ethers'
 
-// 1. Get projectId from https://cloud.walletconnect.com
-const projectId = 'YOUR_PROJECT_ID' // You'll need to get this
+// 1. Get projectId from env vars
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
 
 // 2. Set chains
 const sepolia = {
@@ -11,7 +11,7 @@ const sepolia = {
   name: 'Sepolia',
   currency: 'ETH',
   explorerUrl: 'https://sepolia.etherscan.io',
-  rpcUrl: 'https://rpc.sepolia.org'
+  rpcUrl: import.meta.env.VITE_SEPOLIA_RPC || 'https://rpc.sepolia.org'
 }
 
 // 3. Create a metadata object
@@ -28,7 +28,7 @@ const ethersConfig = defaultConfig({
   enableEIP6963: true,
   enableInjected: true,
   enableCoinbase: true,
-  rpcUrl: 'https://rpc.sepolia.org',
+  rpcUrl: import.meta.env.VITE_SEPOLIA_RPC || 'https://rpc.sepolia.org',
   defaultChainId: 11155111
 })
 
@@ -106,10 +106,17 @@ export default function WalletConnect() {
   }
 
   const connectWallet = async () => {
+    console.log('Attempting to open modal...')
+    console.log('Project ID:', projectId)
+    console.log('Modal object:', modal)
+    
     try {
+      console.log('Calling modal.open()...')
       await modal.open()
+      console.log('Modal opened successfully')
     } catch (error) {
       console.error('Error connecting wallet:', error)
+      alert('Error: ' + error.message)
     }
   }
 
