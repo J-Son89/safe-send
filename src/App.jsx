@@ -7,6 +7,7 @@ import { generateSecurePassword } from './utils/passwordGenerator'
 import { TAB_NAMES, DEPOSIT_FILTER_TYPES, DEPOSIT_TYPES } from './utils/constants'
 import OnboardingModal from './components/layout/OnboardingModal'
 import TabNavigation from './components/layout/TabNavigation'
+import Footer from './components/layout/Footer'
 import SendPage from './pages/SendPage'
 import ClaimPage from './pages/ClaimPage'
 import ReclaimPage from './pages/ReclaimPage'
@@ -650,6 +651,8 @@ function App() {
             ❓ How It Works
           </button>
         </div>
+        
+        <Footer />
       </div>
       <OnboardingModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
