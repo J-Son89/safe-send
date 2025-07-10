@@ -1,110 +1,24 @@
 import { useState, useEffect } from 'react'
 import { BrowserProvider } from 'ethers'
 import WalletConnect from './components/WalletConnect'
-import SendForm from './components/SendForm'
 import ContractService from './services/contractService'
 import { modal } from './utils/walletConnect'
-import { Dialog } from '@headlessui/react'
 import { generateSecurePassword } from './utils/passwordGenerator'
-
-function OnboardingModal({ open, onClose }) {
-  const [showAgain, setShowAgain] = useState(true);
-
-  useEffect(() => {
-    const hide = localStorage.getItem('safesend-onboarding-hide');
-    if (hide) onClose();
-  }, []);
-
-  const handleClose = () => {
-    if (!showAgain) {
-      localStorage.setItem('safesend-onboarding-hide', 'true');
-    }
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onClose={handleClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-      <Dialog.Panel className="bg-gray-900 text-white p-6 px-2 rounded-2xl max-w-md w-full space-y-4 shadow-lg">
-        <Dialog.Title className="text-xl font-semibold text-center">🚀 Welcome to SafeSend</Dialog.Title>
-        <p className="text-gray-300 text-sm text-center">
-          Send ETH securely with password verification — no more lost funds from copy-paste mistakes.
-        </p>
-
-        <div className="flex flex-col space-y-2 text-sm">
-          <Step icon="🧾" title="Create a SafeSend" desc="Enter amount, recipient, and generate a password." />
-          <Step icon="🔐" title="Secure Deposit" desc="Funds are held safely in the smart contract." />
-          <Step icon="📬" title="Recipient Claims" desc="They use the password to claim the ETH." />
-          <Step icon="🔄" title="Always Recoverable" desc="Cancel any unclaimed deposit at any time." />
-        </div>
-
-        <div className="flex items-center space-x-2 mt-4">
-          <input
-            type="checkbox"
-            checked={!showAgain}
-            onChange={() => setShowAgain(!showAgain)}
-            className="form-checkbox accent-blue-500"
-          />
-          <label className="text-sm text-gray-400">Don’t show this again</label>
-        </div>
-
-        <button
-          onClick={handleClose}
-          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded-xl"
-        >
-          ✅ Let’s Go
-        </button>
-      </Dialog.Panel>
-    </Dialog>
-  );
-}
-
-const Step = ({ icon, title, desc }) => (
-  <div className="flex items-start space-x-3">
-    <div className="text-lg">{icon}</div>
-    <div>
-      <p className="font-medium">{title}</p>
-      <p className="text-gray-400 text-xs">{desc}</p>
-    </div>
-  </div>
-);
-
-
-// Format time ago
-const formatTimeAgo = (date) => {
-  const now = new Date()
-  const diffMs = now - date
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
-  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
-  if (diffMins > 0) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`
-  return 'Just now'
-}
-
-// Format time until
-const formatTimeUntil = (date) => {
-  const now = new Date()
-  const diffMs = date - now
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMs <= 0) return 'Expired'
-  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''}`
-  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''}`
-  if (diffMins > 0) return `${diffMins} min${diffMins > 1 ? 's' : ''}`
-  return 'Less than 1 min'
-}
+import { TAB_NAMES, DEPOSIT_FILTER_TYPES, DEPOSIT_TYPES } from './utils/constants'
+import OnboardingModal from './components/layout/OnboardingModal'
+import TabNavigation from './components/layout/TabNavigation'
+import SendPage from './pages/SendPage'
+import ClaimPage from './pages/ClaimPage'
+import ReclaimPage from './pages/ReclaimPage'
+import HistoryPage from './pages/HistoryPage'
 
 function App() {
   // Get initial tab from URL or default to 'send'
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
     const tabFromUrl = urlParams.get('tab')
-    const validTabs = ['send', 'claim', 'reclaim', 'dashboard']
-    return validTabs.includes(tabFromUrl) ? tabFromUrl : 'send'
+    const validTabs = Object.values(TAB_NAMES)
+    return validTabs.includes(tabFromUrl) ? tabFromUrl : TAB_NAMES.SEND
   }
 
   const [activeTab, setActiveTab] = useState(getInitialTab())
@@ -142,7 +56,7 @@ function App() {
   // Dashboard/History tab state
   const [allDeposits, setAllDeposits] = useState([])
   const [allDepositsLoading, setAllDepositsLoading] = useState(false)
-  const [depositFilter, setDepositFilter] = useState('all') // 'all', 'sent', 'received'
+  const [depositFilter, setDepositFilter] = useState(DEPOSIT_FILTER_TYPES.ALL)
   const [searchTerm, setSearchTerm] = useState('')
 
   // Claim tab state
@@ -156,7 +70,7 @@ function App() {
   // Contract constants with defaults
   const [contractConstants, setContractConstants] = useState({
     notificationAmount: '0.001',
-    minDeposit: '0.01', 
+    minDeposit: '0.01',
     platformFeePercent: '0.5', // Default 0.5%
     collectedFees: '0'
   })
@@ -241,10 +155,10 @@ function App() {
       })
 
       // Refresh deposits after sending
-      if (activeTab === 'reclaim') {
+      if (activeTab === TAB_NAMES.RECLAIM) {
         loadUserDeposits()
       }
-      if (activeTab === 'dashboard') {
+      if (activeTab === TAB_NAMES.HISTORY) {
         loadAllDeposits()
       }
 
@@ -265,7 +179,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         provider = new BrowserProvider(window.ethereum)
       } else {
@@ -276,18 +190,18 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
       const contractService = new ContractService(provider, signer)
-      
+
       const constants = await contractService.getConstants()
       console.log('Loaded contract constants:', constants)
-      
+
       setContractConstants(prev => ({
         ...prev,
         ...constants
       }))
-      
+
     } catch (error) {
       console.log('Using default constants (contract may not have new features):', error.message)
       // Keep the default values if contract doesn't have new constants
@@ -463,7 +377,7 @@ function App() {
 
       // Refresh deposits after claiming
       loadClaimableDeposits()
-      if (activeTab === 'dashboard') {
+      if (activeTab === TAB_NAMES.HISTORY) {
         loadAllDeposits()
       }
 
@@ -508,10 +422,10 @@ function App() {
       alert(`✅ Deposit #${depositId} cancelled successfully!\nTX: ${result.txHash}`)
 
       // Reload deposits to show updated status
-      if (activeTab === 'reclaim') {
+      if (activeTab === TAB_NAMES.RECLAIM) {
         loadUserDeposits()
       }
-      if (activeTab === 'dashboard') {
+      if (activeTab === TAB_NAMES.HISTORY) {
         loadAllDeposits()
       }
 
@@ -588,15 +502,15 @@ function App() {
     if (walletState.isConnected) {
       // Load contract constants when wallet connects
       loadContractConstants()
-      
+
       // Load tab-specific data
-      if (activeTab === 'reclaim') {
+      if (activeTab === TAB_NAMES.RECLAIM) {
         loadUserDeposits()
       }
-      if (activeTab === 'dashboard') {
+      if (activeTab === TAB_NAMES.HISTORY) {
         loadAllDeposits()
       }
-      if (activeTab === 'claim') {
+      if (activeTab === TAB_NAMES.CLAIM) {
         loadClaimableDeposits()
       }
     }
@@ -620,10 +534,10 @@ function App() {
     let filtered = allDeposits
 
     // Filter by type
-    if (depositFilter === 'sent') {
-      filtered = filtered.filter(d => d.type === 'sent')
-    } else if (depositFilter === 'received') {
-      filtered = filtered.filter(d => d.type === 'received')
+    if (depositFilter === DEPOSIT_FILTER_TYPES.SENT) {
+      filtered = filtered.filter(d => d.type === DEPOSIT_TYPES.SENT)
+    } else if (depositFilter === DEPOSIT_FILTER_TYPES.RECEIVED) {
+      filtered = filtered.filter(d => d.type === DEPOSIT_TYPES.RECEIVED)
     }
 
     // Filter by search term
@@ -660,630 +574,74 @@ function App() {
           <p className="text-gray-400">Secure ETH transfers with password verification</p>
         </div>
 
-
-        {/* Navigation Tabs */}
-        <div className="flex mb-6 bg-gray-800 rounded-lg p-1">
-          <button
-            onClick={() => updateActiveTab('send')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'send'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-400 hover:text-white'
-              }`}
-          >
-            Send
-          </button>
-          <button
-            onClick={() => updateActiveTab('claim')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'claim'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-400 hover:text-white'
-              }`}
-          >
-            Claim
-          </button>
-          <button
-            onClick={() => updateActiveTab('reclaim')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'reclaim'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-400 hover:text-white'
-              }`}
-          >
-            Reclaim
-          </button>
-          <button
-            onClick={() => updateActiveTab('dashboard')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'dashboard'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-400 hover:text-white'
-              }`}
-          >
-            History
-          </button>
-        </div>
+        <TabNavigation activeTab={activeTab} onTabChange={updateActiveTab} />
 
         {/* Content */}
         <div className="card">
-          {activeTab === 'send' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Send ETH</h2>
-
-              {txResult && (
-                <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <p className="text-green-300 font-medium text-lg">✅ Deposit Created Successfully!</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-3 text-sm">
-                    {/* Deposit Details */}
-                    <div className="bg-gray-800/50 rounded p-3">
-                      <p className="text-blue-300 font-medium mb-2">📋 Deposit Details:</p>
-                      <div className="space-y-1 text-gray-300">
-                        <p>• ID: <span className="font-mono text-blue-300">#{txResult.depositId}</span></p>
-                        <p>• Amount: <span className="text-green-400">{sendForm.amount} ETH</span></p>
-                        <p>• To: <span className="font-mono">{sendForm.recipient.slice(0,8)}...{sendForm.recipient.slice(-6)}</span></p>
-                        <p>• Expires: <span className="text-yellow-400">{sendForm.expiryMinutes} minutes</span></p>
-                        <p>• Password: <span className="font-mono text-purple-300">{sendForm.password}</span></p>
-                      </div>
-                    </div>
-                    
-                    {/* Fee Breakdown */}
-                    <div className="bg-gray-800/50 rounded p-3">
-                      <p className="text-blue-300 font-medium mb-2">💰 Fee Breakdown:</p>
-                      <div className="space-y-1 text-gray-300">
-                        <p>• Notification sent: <span className="text-green-400">{contractConstants.notificationAmount} ETH</span></p>
-                        <p>• Platform fee: <span className="text-orange-400">{contractConstants.platformFeePercent}%</span></p>
-                        <p>• Gas used: <span className="text-gray-400">{txResult.gasUsed ? `${(parseInt(txResult.gasUsed) / 1000).toFixed(1)}k` : 'N/A'}</span></p>
-                      </div>
-                    </div>
-                    
-                    {/* Next Steps */}
-                    <div className="bg-blue-900/30 rounded p-3">
-                      <p className="text-blue-300 font-medium mb-2">📤 Next Steps:</p>
-                      <div className="space-y-1 text-gray-300 text-xs">
-                        <p>1. Share Deposit ID <span className="font-mono text-blue-300">#{txResult.depositId}</span> with recipient</p>
-                        <p>2. Share password <span className="font-mono text-purple-300">{sendForm.password}</span> with recipient</p>
-                        <p>3. Recipient uses Claim tab to get their ETH</p>
-                        <p>4. You can cancel anytime in Reclaim tab if needed</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 pt-3 border-t border-gray-600">
-                    <div className="flex gap-4 text-xs">
-                      <a
-                        href={`https://sepolia.etherscan.io/tx/${txResult.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 underline"
-                      >
-                        🔗 View Transaction
-                      </a>
-                      <a
-                        href={`https://sepolia.etherscan.io/address/${import.meta.env.VITE_CONTRACT_ADDRESS}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 underline"
-                      >
-                        🔗 View Contract
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Amount (ETH)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
-                    placeholder={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
-                    value={sendForm.amount}
-                    onChange={(e) => setSendForm(prev => ({ ...prev, amount: e.target.value }))}
-                    className={`input-field w-full ${errors.amount ? 'border-red-500' : ''}`}
-                    disabled={isLoading}
-                  />
-                  {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
-                
-                  <div className="mt-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-xs">
-                    <p className="text-blue-300 font-medium">💡 Fee Breakdown:</p>
-                    <p className="text-gray-400 mt-1">
-                      • {contractConstants.notificationAmount} ETH notification (sent immediately to recipient)<br/>
-                      • {contractConstants.platformFeePercent}% SafeSend platform fee<br/>
-                      • Remaining amount held in contract until claimed<br/>
-                      • Plus standard Ethereum gas fees
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Recipient Address
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="0x..."
-                    value={sendForm.recipient}
-                    onChange={(e) => setSendForm(prev => ({ ...prev, recipient: e.target.value }))}
-                    className={`input-field w-full ${errors.recipient ? 'border-red-500' : ''}`}
-                    disabled={isLoading}
-                  />
-                  {errors.recipient && <p className="text-red-400 text-sm mt-1">{errors.recipient}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Password
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Click generate or enter manually"
-                      value={sendForm.password}
-                      onChange={(e) => setSendForm(prev => ({ ...prev, password: e.target.value }))}
-                      className={`input-field flex-1 ${errors.password ? 'border-red-500' : ''}`}
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleGeneratePassword}
-                      className="btn-secondary px-3 py-2 text-sm"
-                      disabled={isLoading}
-                    >
-                      Generate
-                    </button>
-                  </div>
-                  {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password}</p>}
-
-                  {sendForm.password && (
-                    <div className="mt-2 p-3 bg-gray-700 rounded border-l-4 border-blue-500">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-mono text-blue-300 select-all">{sendForm.password}</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(sendForm.password)}
-                          className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 bg-blue-900/30 rounded"
-                          disabled={isLoading}
-                        >
-                          📋 Copy
-                        </button>
-                      </div>
-                      
-                      <div className="text-xs text-gray-400">
-                        <p>📤 Share this with the recipient</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Expires in
-                  </label>
-                  <select
-                    value={sendForm.expiryMinutes}
-                    onChange={(e) => setSendForm(prev => ({ ...prev, expiryMinutes: e.target.value }))}
-                    className="input-field w-full"
-                    disabled={isLoading}
-                  >
-                    <option value="30">30 minutes</option>
-                    <option value="60">1 hour</option>
-                    <option value="120">2 hours</option>
-                    <option value="360">6 hours</option>
-                    <option value="720">12 hours</option>
-                    <option value="1440">24 hours</option>
-                  </select>
-                </div>
-
-                {errors.submit && (
-                  <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
-                    <p className="text-red-300 text-sm">{errors.submit}</p>
-                  </div>
-                )}
-
-                {!window.ethereum ? (
-                  <WalletConnect onConnectionChange={handleWalletConnectionChange} />
-                ) : (
-                  <div className="text-center">
-                    {walletState.isConnected ? (
-                      <p className="text-sm text-gray-400">
-                        ✅ MetaMask Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
-                      </p>
-                    ) : (
-                      <button
-                        onClick={connectMetaMask}
-                        className="btn-primary w-full"
-                      >
-                        🦊 Connect MetaMask
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  onClick={handleSendETH}
-                  disabled={isLoading}
-                  className="btn-primary w-full text-lg font-semibold"
-                >
-                  {isLoading ? '⏳ Sending...' : '🚀 Send ETH'}
-                </button>
-              </div>
-            </div>
+          {activeTab === TAB_NAMES.SEND && (
+            <SendPage
+              isConnected={walletState.isConnected}
+              contractConstants={contractConstants}
+              onSendETH={handleSendETH}
+              isLoading={isLoading}
+              txResult={txResult}
+              errors={errors}
+              formData={sendForm}
+              onFormChange={setSendForm}
+              onGeneratePassword={handleGeneratePassword}
+              connectMetaMask={connectMetaMask}
+              WalletConnect={WalletConnect}
+              onWalletConnectionChange={handleWalletConnectionChange}
+              walletState={walletState}
+            />
           )}
 
-          {activeTab === 'claim' && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Claim ETH</h2>
-                {walletState.isConnected && (
-                  <button
-                    onClick={loadClaimableDeposits}
-                    disabled={claimableLoading}
-                    className="btn-secondary text-sm px-3 py-1"
-                  >
-                    {claimableLoading ? '⏳' : '🔄'} Refresh
-                  </button>
-                )}
-              </div>
-              <p className="text-gray-400 text-sm mb-4">
-                Enter the password for each deposit to claim your ETH
-              </p>
-
-              {!walletState.isConnected ? (
-                <div className="text-center text-gray-400">
-                  <p>Connect your wallet to view claimable deposits</p>
-                  {!window.ethereum ? (
-                    <WalletConnect onConnectionChange={handleWalletConnectionChange} />
-                  ) : (
-                    <button
-                      onClick={connectMetaMask}
-                      className="btn-primary mt-4"
-                    >
-                      🦊 Connect MetaMask
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {claimableLoading ? (
-                    <div className="text-center text-gray-400">
-                      <p>⏳ Loading claimable deposits...</p>
-                    </div>
-                  ) : claimableDeposits.length === 0 ? (
-                    <div className="text-center text-gray-400">
-                      <p>No claimable deposits found</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Deposits sent to you will appear here
-                      </p>
-                      <div className="mt-3 p-3 bg-gray-800/50 rounded text-left text-xs">
-                        <p className="text-gray-400 mb-1">Debug info:</p>
-                        <p>Connected address: {walletState.address}</p>
-                        <p>Check browser console for detailed logs</p>
-                      </div>
-                    </div>
-                  ) : (
-                    claimableDeposits.map((deposit) => (
-                      <div key={deposit.id} className="border border-gray-600 rounded-lg p-4">
-                        {/* Success banner for this specific deposit */}
-                        {claimResults[deposit.id] && (
-                          <div className="mb-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
-                            <p className="text-green-300 font-medium text-sm">✅ Claimed Successfully!</p>
-                            <div className="text-xs text-gray-300 mt-1">
-                              <a
-                                href={`https://sepolia.etherscan.io/tx/${claimResults[deposit.id].txHash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300 underline break-all"
-                              >
-                                View Transaction
-                              </a>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">Deposit #{deposit.id}</p>
-                              <span className="text-xs px-2 py-1 rounded-full bg-green-900/30 text-green-300">
-                                📥 Received
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-400">
-                              From: {deposit.depositor.slice(0, 6)}...{deposit.depositor.slice(-4)}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
-                            <p className="text-xs text-green-400">Active</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Password from sender
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Enter password to claim"
-                              value={claimPasswords[deposit.id] || ''}
-                              onChange={(e) => setClaimPasswords(prev => ({
-                                ...prev,
-                                [deposit.id]: e.target.value
-                              }))}
-                              className={`input-field w-full ${claimErrors[deposit.id] ? 'border-red-500' : ''}`}
-                              disabled={claimingDeposits[deposit.id] || claimResults[deposit.id]}
-                            />
-                            {claimErrors[deposit.id] && (
-                              <p className="text-red-400 text-sm mt-1">{claimErrors[deposit.id]}</p>
-                            )}
-                          </div>
-
-                          <div className="flex justify-between items-center">
-                            <p className="text-xs text-gray-500">
-                              Expires: {deposit.expiryTime.toLocaleString()} •
-                              Expires in {formatTimeUntil(deposit.expiryTime)}
-                            </p>
-
-                            {!claimResults[deposit.id] && (
-                              <button
-                                onClick={() => handleClaimETH(deposit.id)}
-                                disabled={claimingDeposits[deposit.id] || !claimPasswords[deposit.id]}
-                                className="btn-primary text-sm px-4 py-2"
-                              >
-                                {claimingDeposits[deposit.id] ? '⏳ Claiming...' : '💰 Claim'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-
-                  <div className="text-center text-gray-500 text-sm">
-                    <p>💡 Ask the sender for the password to claim each deposit</p>
-                  </div>
-                </div>
-              )}
-            </div>
+          {activeTab === TAB_NAMES.CLAIM && (
+            <ClaimPage
+              walletState={walletState}
+              claimableDeposits={claimableDeposits}
+              claimableLoading={claimableLoading}
+              claimPasswords={claimPasswords}
+              claimingDeposits={claimingDeposits}
+              claimResults={claimResults}
+              claimErrors={claimErrors}
+              onLoadClaimableDeposits={loadClaimableDeposits}
+              onClaimETH={handleClaimETH}
+              onPasswordChange={(depositId, value) => setClaimPasswords(prev => ({ ...prev, [depositId]: value }))}
+              connectMetaMask={connectMetaMask}
+              WalletConnect={WalletConnect}
+              onWalletConnectionChange={handleWalletConnectionChange}
+            />
           )}
 
-          {activeTab === 'reclaim' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Reclaim Your ETH</h2>
-              <p className="text-gray-400 text-sm mb-4">
-                Cancel deposits you created to get your ETH back
-              </p>
-
-              {!walletState.isConnected ? (
-                <div className="text-center text-gray-400">
-                  <p>Connect your wallet to view reclaimable deposits</p>
-                  {!window.ethereum ? (
-                    <WalletConnect onConnectionChange={handleWalletConnectionChange} />
-                  ) : (
-                    <button
-                      onClick={connectMetaMask}
-                      className="btn-primary mt-4"
-                    >
-                      🦊 Connect MetaMask
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {depositsLoading ? (
-                    <div className="text-center text-gray-400">
-                      <p>⏳ Loading your deposits...</p>
-                    </div>
-                  ) : userDeposits.filter(d => d.canCancel).length === 0 ? (
-                    <div className="text-center text-gray-400">
-                      <p>No reclaimable deposits found</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Active deposits you create will appear here
-                      </p>
-                    </div>
-                  ) : (
-                    userDeposits
-                      .filter(d => d.canCancel)
-                      .map((deposit) => (
-                        <div key={deposit.id} className="border border-gray-600 rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">Deposit #{deposit.id}</p>
-                                <span className="text-xs px-2 py-1 rounded-full bg-orange-900/30 text-orange-300">
-                                  📤 Sent
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-400">
-                                To: {deposit.recipient.slice(0, 6)}...{deposit.recipient.slice(-4)}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
-                              <p className={`text-xs ${deposit.isExpired ? 'text-red-400' : 'text-green-400'
-                                }`}>
-                                {deposit.isExpired ? 'Expired' : 'Active'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <p className="text-xs text-gray-500">
-                              Expires: {deposit.expiryTime.toLocaleString()} •
-                              {deposit.isExpired ?
-                                `Expired ${formatTimeAgo(deposit.expiryTime)}` :
-                                `Expires in ${formatTimeUntil(deposit.expiryTime)}`
-                              }
-                            </p>
-                            <button
-                              onClick={() => handleReclaimETH(deposit.id)}
-                              className="btn-secondary text-sm px-3 py-1"
-                            >
-                              🔄 {deposit.isExpired ? 'Reclaim ETH' : 'Cancel Deposit'}
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                  )}
-
-                  <div className="text-center text-gray-500 text-sm">
-                    <p>💡 You can cancel any deposit you created at any time</p>
-                  </div>
-                </div>
-              )}
-            </div>
+          {activeTab === TAB_NAMES.RECLAIM && (
+            <ReclaimPage
+              walletState={walletState}
+              userDeposits={userDeposits}
+              depositsLoading={depositsLoading}
+              onReclaimETH={handleReclaimETH}
+              connectMetaMask={connectMetaMask}
+              WalletConnect={WalletConnect}
+              onWalletConnectionChange={handleWalletConnectionChange}
+            />
           )}
 
-          {activeTab === 'dashboard' && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Your Deposits</h2>
-
-              {!walletState.isConnected ? (
-                <div className="text-center text-gray-400">
-                  <p>Connect your wallet to view all your deposits</p>
-                  {!window.ethereum ? (
-                    <WalletConnect onConnectionChange={handleWalletConnectionChange} />
-                  ) : (
-                    <button
-                      onClick={connectMetaMask}
-                      className="btn-primary mt-4"
-                    >
-                      🦊 Connect MetaMask
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Search and Filter Controls */}
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Search by ID, address, or amount..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="input-field w-full text-sm"
-                    />
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setDepositFilter('all')}
-                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${depositFilter === 'all'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-400 hover:text-white'
-                          }`}
-                      >
-                        All
-                      </button>
-                      <button
-                        onClick={() => setDepositFilter('sent')}
-                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${depositFilter === 'sent'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-400 hover:text-white'
-                          }`}
-                      >
-                        Sent
-                      </button>
-                      <button
-                        onClick={() => setDepositFilter('received')}
-                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${depositFilter === 'received'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-400 hover:text-white'
-                          }`}
-                      >
-                        Received
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Deposits List */}
-                  {allDepositsLoading ? (
-                    <div className="text-center text-gray-400">
-                      <p>⏳ Loading your deposits...</p>
-                    </div>
-                  ) : getFilteredDeposits().length === 0 ? (
-                    <div className="text-center text-gray-400">
-                      <p>
-                        {searchTerm ? 'No deposits match your search' :
-                          depositFilter === 'all' ? 'No deposits found' :
-                            depositFilter === 'sent' ? 'No deposits sent' :
-                              'No deposits received'}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {depositFilter === 'all' && !searchTerm && 'Deposits you send or receive will appear here'}
-                      </p>
-                    </div>
-                  ) : (
-                    getFilteredDeposits().map((deposit) => (
-                      <div key={deposit.id} className="border border-gray-600 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">Deposit #{deposit.id}</p>
-                              <span className={`text-xs px-2 py-1 rounded-full ${deposit.type === 'sent' ? 'bg-orange-900/30 text-orange-300' : 'bg-green-900/30 text-green-300'
-                                }`}>
-                                {deposit.type === 'sent' ? '📤 Sent' : '📥 Received'}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-400">
-                              {deposit.type === 'sent' ?
-                                `To: ${deposit.recipient.slice(0, 6)}...${deposit.recipient.slice(-4)}` :
-                                `From: ${deposit.depositor.slice(0, 6)}...${deposit.depositor.slice(-4)}`
-                              }
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
-                            <p className={`text-xs ${deposit.claimed ? 'text-green-400' :
-                              deposit.cancelled ? 'text-gray-400' :
-                                deposit.isExpired ? 'text-red-400' :
-                                  'text-green-400'
-                              }`}>
-                              {deposit.claimed ? 'Claimed' :
-                                deposit.cancelled ? 'Cancelled' :
-                                  deposit.isExpired ? 'Expired' :
-                                    'Active'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <p className="text-xs text-gray-500">
-                            Expires: {deposit.expiryTime.toLocaleString()} •
-                            {deposit.isExpired ?
-                              `Expired ${formatTimeAgo(deposit.expiryTime)}` :
-                              `Expires in ${formatTimeUntil(deposit.expiryTime)}`
-                            }
-                          </p>
-                          <div className="flex gap-2">
-                            {deposit.canClaim && (
-                              <button
-                                onClick={() => updateActiveTab('claim')}
-                                className="btn-primary text-sm px-3 py-1"
-                              >
-                                💰 Claim
-                              </button>
-                            )}
-                            {deposit.canCancel && (
-                              <button
-                                onClick={() => handleReclaimETH(deposit.id)}
-                                className="btn-secondary text-sm px-3 py-1"
-                              >
-                                🔄 Cancel
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-
-                  <div className="text-center text-gray-500 text-sm">
-                    <p>💡 Shows all deposits sent to or from your address</p>
-                  </div>
-                </div>
-              )}
-            </div>
+          {activeTab === TAB_NAMES.HISTORY && (
+            <HistoryPage
+              walletState={walletState}
+              allDeposits={allDeposits}
+              allDepositsLoading={allDepositsLoading}
+              depositFilter={depositFilter}
+              searchTerm={searchTerm}
+              onDepositFilterChange={setDepositFilter}
+              onSearchTermChange={setSearchTerm}
+              onTabChange={updateActiveTab}
+              onReclaimETH={handleReclaimETH}
+              getFilteredDeposits={getFilteredDeposits}
+              connectMetaMask={connectMetaMask}
+              WalletConnect={WalletConnect}
+              onWalletConnectionChange={handleWalletConnectionChange}
+            />
           )}
 
         </div>

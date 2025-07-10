@@ -26,7 +26,18 @@ export const DEPOSIT_STATUS = {
 
 export const TAB_NAMES = {
   SEND: 'send',
-  CLAIM: 'claim',
+  CLAIM: 'claim', 
   RECLAIM: 'reclaim',
   HISTORY: 'history'
+}
+
+export const DEPOSIT_FILTER_TYPES = {
+  ALL: 'all',
+  SENT: 'sent',
+  RECEIVED: 'received'
+}
+
+export const DEPOSIT_TYPES = {
+  SENT: 'sent',
+  RECEIVED: 'received'
 }

@@ -10,23 +10,18 @@ export default function SendPage({
   onSendETH, 
   isLoading, 
   txResult, 
-  errors 
+  errors,
+  formData,
+  onFormChange,
+  onGeneratePassword,
+  connectMetaMask,
+  WalletConnect,
+  onWalletConnectionChange,
+  walletState
 }) {
-  const [formData, setFormData] = useState({
-    amount: '',
-    recipient: '',
-    password: '',
-    expiryMinutes: '30'
-  })
-
-  const handleGeneratePassword = () => {
-    const newPassword = generateSecurePassword()
-    setFormData(prev => ({ ...prev, password: newPassword }))
-  }
-
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSendETH(formData)
+    onSendETH()
   }
 
   const handleCopy = async (text) => {
@@ -37,13 +32,6 @@ export default function SendPage({
     }
   }
 
-  if (!isConnected) {
-    return (
-      <div className="text-center text-gray-400">
-        <p>Connect your wallet to send ETH</p>
-      </div>
-    )
-  }
 
   return (
     <div>
@@ -125,7 +113,7 @@ export default function SendPage({
             min={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
             placeholder={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
             value={formData.amount}
-            onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+            onChange={(e) => onFormChange(prev => ({ ...prev, amount: e.target.value }))}
             className={`input-field w-full ${errors.amount ? 'border-red-500' : ''}`}
             disabled={isLoading}
           />
@@ -153,7 +141,7 @@ export default function SendPage({
             type="text"
             placeholder="0x..."
             value={formData.recipient}
-            onChange={(e) => setFormData(prev => ({ ...prev, recipient: e.target.value }))}
+            onChange={(e) => onFormChange(prev => ({ ...prev, recipient: e.target.value }))}
             className={`input-field w-full ${errors.recipient ? 'border-red-500' : ''}`}
             disabled={isLoading}
           />
@@ -169,14 +157,14 @@ export default function SendPage({
             <input
               type="text"
               value={formData.password}
-              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              onChange={(e) => onFormChange(prev => ({ ...prev, password: e.target.value }))}
               className={`input-field flex-1 ${errors.password ? 'border-red-500' : ''}`}
               placeholder="Click generate or enter manually"
               disabled={isLoading}
             />
             <button
               type="button"
-              onClick={handleGeneratePassword}
+              onClick={onGeneratePassword}
               className="btn-secondary px-3 py-2 text-sm"
               disabled={isLoading}
             >
@@ -213,7 +201,7 @@ export default function SendPage({
           </label>
           <select
             value={formData.expiryMinutes}
-            onChange={(e) => setFormData(prev => ({ ...prev, expiryMinutes: e.target.value }))}
+            onChange={(e) => onFormChange(prev => ({ ...prev, expiryMinutes: e.target.value }))}
             className="input-field w-full"
             disabled={isLoading}
           >
@@ -232,11 +220,31 @@ export default function SendPage({
           </div>
         )}
 
+        {/* Wallet Connection */}
+        {!window.ethereum ? (
+          <WalletConnect onConnectionChange={onWalletConnectionChange} />
+        ) : (
+          <div className="text-center">
+            {walletState.isConnected ? (
+              <p className="text-sm text-gray-400">
+                ✅ MetaMask Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
+              </p>
+            ) : (
+              <button
+                onClick={connectMetaMask}
+                className="btn-primary w-full"
+              >
+                🦊 Connect MetaMask
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Submit Button */}
         <button
-          type="submit"
-          className="btn-primary w-full flex items-center justify-center gap-2"
+          onClick={onSendETH}
           disabled={isLoading}
+          className="btn-primary w-full flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
@@ -244,7 +252,7 @@ export default function SendPage({
               Sending...
             </>
           ) : (
-            'Send ETH'
+            '🚀 Send ETH'
           )}
         </button>
       </form>
