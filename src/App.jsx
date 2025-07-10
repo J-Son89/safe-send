@@ -8,6 +8,7 @@ import { TAB_NAMES, DEPOSIT_FILTER_TYPES, DEPOSIT_TYPES } from './utils/constant
 import OnboardingModal from './components/layout/OnboardingModal'
 import TabNavigation from './components/layout/TabNavigation'
 import Footer from './components/layout/Footer'
+import AppLoader from './components/ui/AppLoader'
 import SendPage from './pages/SendPage'
 import ClaimPage from './pages/ClaimPage'
 import ReclaimPage from './pages/ReclaimPage'
@@ -462,9 +463,14 @@ function App() {
 
   // Check for MetaMask connection on load
   useEffect(() => {
-    const checkMetaMaskConnection = async () => {
-      if (window.ethereum) {
-        try {
+    const initializeApp = async () => {
+      setAppLoading(true)
+      
+      // Simulate minimum loading time for smooth UX
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 1500))
+      
+      try {
+        if (window.ethereum) {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' })
           if (accounts.length > 0) {
             setWalletState({
@@ -472,13 +478,17 @@ function App() {
               address: accounts[0]
             })
           }
-        } catch (error) {
-          console.log('MetaMask not connected')
         }
+      } catch (error) {
+        console.log('MetaMask not connected')
       }
+      
+      // Wait for minimum load time
+      await minLoadTime
+      setAppLoading(false)
     }
 
-    checkMetaMaskConnection()
+    initializeApp()
 
     // Listen for MetaMask account changes
     if (window.ethereum) {
@@ -557,6 +567,7 @@ function App() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [hasShownOnce, setHasShownOnce] = useState(false);
+  const [appLoading, setAppLoading] = useState(true);
 
   useEffect(() => {
     const skip = localStorage.getItem('safesend-onboarding-hide');
@@ -566,13 +577,18 @@ function App() {
     }
   }, []);
 
+  // Show loading screen during app initialization
+  if (appLoading) {
+    return <AppLoader />
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
-      <div className="container mx-auto px-4 py-8 max-w-md">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-400 mb-2">SafeSend</h1>
-          <p className="text-gray-400">Secure ETH transfers with password verification</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">SafeSend</h1>
+          <p className="text-sm sm:text-base text-gray-400">Secure ETH transfers with password verification</p>
         </div>
 
         <TabNavigation activeTab={activeTab} onTabChange={updateActiveTab} />
@@ -647,7 +663,7 @@ function App() {
 
         </div>
         <div className="flex justify-center pt-2">
-          <button className="text-sm text-gray-300 hover:text-white">
+          <button className="text-sm text-gray-300 hover:text-white touch-target">
             ❓ How It Works
           </button>
         </div>

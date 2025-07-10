@@ -26,13 +26,15 @@
 
 ## 🔲 REMAINING TASKS (Low Priority)
 
-### Future Enhancements
-- [ ] Add network switching support (Sepolia/mainnet/Arbitrum) - very low priority future enhancement
-- [ ] Test and polish mobile-first design
+### Current Priority Tasks
+- [x] Improve loading states, especially on first load
+- [x] Test and polish mobile-first design
+
+### Future Enhancements (Much Later)
+- [ ] Add network switching support (Sepolia/mainnet/Arbitrum) - deprioritized to much later
 
 ### Additional Polish Items (Not Prioritized)
-- [ ] Add contract link and GitHub commit hash to header for transparency
-- [ ] Improve loading states, especially on first load
+- [x] Add contract link and GitHub commit hash to header for transparency
 - [ ] Refresh button should be smoother loading
 - [ ] Refresh button on reclaim screen (evaluate if needed)
 - [ ] Refresh button on history screen (evaluate if needed)

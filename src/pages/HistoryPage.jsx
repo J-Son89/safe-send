@@ -1,6 +1,7 @@
 import { formatTimeAgo, formatTimeUntil, copyToClipboard } from '../utils/formatters'
 import { TAB_NAMES, DEPOSIT_FILTER_TYPES, DEPOSIT_TYPES } from '../utils/constants'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import SkeletonLoader from '../components/ui/SkeletonLoader'
 
 export default function HistoryPage({
   walletState,
@@ -80,7 +81,7 @@ export default function HistoryPage({
 
           {/* Deposits List */}
           {allDepositsLoading ? (
-            <LoadingSpinner text="Loading your deposits..." />
+            <SkeletonLoader variant="deposit" count={3} />
           ) : filteredDeposits.length === 0 ? (
             <div className="text-center text-gray-400">
               <p>

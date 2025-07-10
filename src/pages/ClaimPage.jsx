@@ -24,9 +24,19 @@ export default function ClaimPage({
           <button
             onClick={onLoadClaimableDeposits}
             disabled={claimableLoading}
-            className="btn-secondary text-sm px-3 py-1"
+            className="btn-secondary text-sm px-3 py-1 flex items-center gap-1 transition-all duration-200"
           >
-            {claimableLoading ? '⏳' : '🔄'} Refresh
+            {claimableLoading ? (
+              <>
+                <LoadingSpinner size="sm" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Refresh</span>
+              </>
+            )}
           </button>
         )}
       </div>

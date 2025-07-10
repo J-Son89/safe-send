@@ -36,12 +36,12 @@ export default function SendPage({
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Send ETH</h2>
+      <h2 className="heading-responsive font-semibold mb-4">Send ETH</h2>
 
       {txResult && (
-        <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+        <div className="mb-4 p-3 sm:p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
-            <p className="text-green-300 font-medium text-lg">✅ Deposit Created Successfully!</p>
+            <p className="text-green-300 font-medium text-base sm:text-lg">✅ Deposit Created Successfully!</p>
           </div>
           
           <div className="grid grid-cols-1 gap-3 text-sm">
@@ -115,7 +115,7 @@ export default function SendPage({
             placeholder={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
             value={formData.amount}
             onChange={(e) => onFormChange(prev => ({ ...prev, amount: e.target.value }))}
-            className={`input-field w-full ${errors.amount ? 'border-red-500' : ''}`}
+            className={`input-field w-full touch-target ${errors.amount ? 'border-red-500' : ''}`}
             disabled={isLoading}
           />
           {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
@@ -143,8 +143,10 @@ export default function SendPage({
             placeholder="0x..."
             value={formData.recipient}
             onChange={(e) => onFormChange(prev => ({ ...prev, recipient: e.target.value }))}
-            className={`input-field w-full ${errors.recipient ? 'border-red-500' : ''}`}
+            className={`input-field w-full touch-target ${errors.recipient ? 'border-red-500' : ''}`}
             disabled={isLoading}
+            autoComplete="off"
+            spellCheck="false"
           />
           {errors.recipient && <p className="text-red-400 text-sm mt-1">{errors.recipient}</p>}
         </div>
@@ -159,14 +161,14 @@ export default function SendPage({
               type="text"
               value={formData.password}
               onChange={(e) => onFormChange(prev => ({ ...prev, password: e.target.value }))}
-              className={`input-field flex-1 ${errors.password ? 'border-red-500' : ''}`}
+              className={`input-field flex-1 touch-target ${errors.password ? 'border-red-500' : ''}`}
               placeholder="Click generate or enter manually"
               disabled={isLoading}
             />
             <button
               type="button"
               onClick={onGeneratePassword}
-              className="btn-secondary px-3 py-2 text-sm"
+              className="btn-secondary px-3 py-2 text-sm touch-target flex-shrink-0"
               disabled={isLoading}
             >
               Generate
