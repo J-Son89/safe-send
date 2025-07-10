@@ -58,11 +58,6 @@ export default function ClaimPage({
               <p className="text-sm text-gray-500 mt-1">
                 Deposits sent to you will appear here
               </p>
-              <div className="mt-3 p-3 bg-gray-800/50 rounded text-left text-xs">
-                <p className="text-gray-400 mb-1">Debug info:</p>
-                <p>Connected address: {walletState.address}</p>
-                <p>Check browser console for detailed logs</p>
-              </div>
             </div>
           ) : (
             claimableDeposits.map((deposit) => (
