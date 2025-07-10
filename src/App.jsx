@@ -787,9 +787,7 @@ function App() {
                     disabled={isLoading}
                   />
                   {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Minimum: {parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)} ETH (includes {contractConstants.notificationAmount} ETH notification + {contractConstants.platformFeePercent}% platform fee)
-                  </p>
+                
                   <div className="mt-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-xs">
                     <p className="text-blue-300 font-medium">💡 Fee Breakdown:</p>
                     <p className="text-gray-400 mt-1">
