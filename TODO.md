@@ -35,6 +35,8 @@
 
 ### Additional Polish Items (Not Prioritized)
 - [x] Add contract link and GitHub commit hash to header for transparency
+- [ ] on history log and claim/reclaim page show the link to the explorer so user can verify the transaction on chain too.
+- [ ] fix github url on deployed version 
 - [ ] Refresh button should be smoother loading
 - [ ] Refresh button on reclaim screen (evaluate if needed)
 - [ ] Refresh button on history screen (evaluate if needed)
