@@ -160,6 +160,14 @@ function App() {
   const [claimResults, setClaimResults] = useState({}) // depositId -> result
   const [claimErrors, setClaimErrors] = useState({}) // depositId -> error
 
+  // Contract constants with defaults
+  const [contractConstants, setContractConstants] = useState({
+    notificationAmount: '0.001',
+    minDeposit: '0.01', 
+    platformFeePercent: '0.5', // Default 0.5%
+    collectedFees: '0'
+  })
+
   const handleGeneratePassword = () => {
     const newPassword = generatePassword()
     setSendForm(prev => ({ ...prev, password: newPassword }))
@@ -174,8 +182,9 @@ function App() {
 
     // Validate form
     const newErrors = {}
-    if (!sendForm.amount || parseFloat(sendForm.amount) < 0.011) {
-      newErrors.amount = 'Minimum amount is 0.011 ETH (includes 0.001 ETH notification fee)'
+    const minAmount = parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)
+    if (!sendForm.amount || parseFloat(sendForm.amount) < minAmount) {
+      newErrors.amount = `Minimum amount is ${minAmount} ETH (includes ${contractConstants.notificationAmount} ETH notification + ${contractConstants.platformFeePercent}% platform fee)`
     }
     if (!sendForm.recipient) {
       newErrors.recipient = 'Recipient address is required'
@@ -257,6 +266,39 @@ function App() {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
     alert('Copied to clipboard!')
+  }
+
+  const loadContractConstants = async () => {
+    try {
+      // Use MetaMask if available, otherwise fall back to WalletConnect
+      let provider
+      
+      if (window.ethereum) {
+        provider = new BrowserProvider(window.ethereum)
+      } else {
+        const walletProvider = modal.getWalletProvider()
+        if (!walletProvider) {
+          console.log('No wallet provider found for constants')
+          return
+        }
+        provider = new BrowserProvider(walletProvider)
+      }
+      
+      const signer = await provider.getSigner()
+      const contractService = new ContractService(provider, signer)
+      
+      const constants = await contractService.getConstants()
+      console.log('Loaded contract constants:', constants)
+      
+      setContractConstants(prev => ({
+        ...prev,
+        ...constants
+      }))
+      
+    } catch (error) {
+      console.log('Using default constants (contract may not have new features):', error.message)
+      // Keep the default values if contract doesn't have new constants
+    }
   }
 
   const loadUserDeposits = async () => {
@@ -550,14 +592,20 @@ function App() {
 
   // Load user deposits when wallet connects or tabs are activated
   useEffect(() => {
-    if (walletState.isConnected && activeTab === 'reclaim') {
-      loadUserDeposits()
-    }
-    if (walletState.isConnected && activeTab === 'dashboard') {
-      loadAllDeposits()
-    }
-    if (walletState.isConnected && activeTab === 'claim') {
-      loadClaimableDeposits()
+    if (walletState.isConnected) {
+      // Load contract constants when wallet connects
+      loadContractConstants()
+      
+      // Load tab-specific data
+      if (activeTab === 'reclaim') {
+        loadUserDeposits()
+      }
+      if (activeTab === 'dashboard') {
+        loadAllDeposits()
+      }
+      if (activeTab === 'claim') {
+        loadClaimableDeposits()
+      }
     }
   }, [walletState.isConnected, walletState.address, activeTab])
 
@@ -708,8 +756,8 @@ function App() {
                   <input
                     type="number"
                     step="0.001"
-                    min="0.011"
-                    placeholder="0.011"
+                    min={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
+                    placeholder={parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)}
                     value={sendForm.amount}
                     onChange={(e) => setSendForm(prev => ({ ...prev, amount: e.target.value }))}
                     className={`input-field w-full ${errors.amount ? 'border-red-500' : ''}`}
@@ -717,8 +765,17 @@ function App() {
                   />
                   {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
                   <p className="text-xs text-gray-500 mt-1">
-                    Minimum: 0.011 ETH (0.001 ETH sent immediately as notification, rest held until claimed)
+                    Minimum: {parseFloat(contractConstants.notificationAmount) + parseFloat(contractConstants.minDeposit)} ETH (includes {contractConstants.notificationAmount} ETH notification + {contractConstants.platformFeePercent}% platform fee)
                   </p>
+                  <div className="mt-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-xs">
+                    <p className="text-blue-300 font-medium">💡 Fee Breakdown:</p>
+                    <p className="text-gray-400 mt-1">
+                      • {contractConstants.notificationAmount} ETH notification (sent immediately to recipient)<br/>
+                      • {contractConstants.platformFeePercent}% SafeSend platform fee<br/>
+                      • Remaining amount held in contract until claimed<br/>
+                      • Plus standard Ethereum gas fees
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">

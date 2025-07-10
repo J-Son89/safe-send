@@ -26,16 +26,21 @@ export class ContractService {
       console.log('Contract address:', CONTRACT_ADDRESS)
       console.log('Contract ABI:', SafeSendABI.abi)
       
-      const [notificationAmount, minDeposit, nextDepositId] = await Promise.all([
+      const [notificationAmount, minDeposit, nextDepositId, platformFeePercentage, collectedFees] = await Promise.all([
         this.readOnlyContract.NOTIFICATION_AMOUNT(),
         this.readOnlyContract.MIN_DEPOSIT(),
-        this.readOnlyContract.nextDepositId()
+        this.readOnlyContract.nextDepositId(),
+        this.readOnlyContract.PLATFORM_FEE_PERCENTAGE(),
+        this.readOnlyContract.getCollectedFees()
       ])
 
       return {
         notificationAmount: formatEther(notificationAmount),
         minDeposit: formatEther(minDeposit),
-        nextDepositId: nextDepositId.toString()
+        nextDepositId: nextDepositId.toString(),
+        platformFeePercentage: platformFeePercentage.toString(),
+        platformFeePercent: (Number(platformFeePercentage) / 100).toFixed(1), // Convert basis points to percentage
+        collectedFees: formatEther(collectedFees)
       }
     } catch (error) {
       console.error('Error getting constants:', error)

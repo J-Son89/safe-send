@@ -12,9 +12,12 @@ contract SafeSend {
     uint256 public constant MIN_DEPOSIT = 0.01 ether;
     uint256 public constant MAX_EXPIRY_HOURS = 24;
     uint256 public constant DEFAULT_EXPIRY_MINUTES = 30;
+    uint256 public constant PLATFORM_FEE_PERCENTAGE = 50; // 0.5% (50 basis points)
     
     // State variables
+    address public owner;
     uint256 public nextDepositId;
+    uint256 public collectedFees;
     
     // Structs
     struct Deposit {
@@ -29,6 +32,17 @@ contract SafeSend {
     
     // Storage
     mapping(uint256 => Deposit) public deposits;
+    
+    // Modifiers
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+    
+    // Constructor
+    constructor() {
+        owner = msg.sender;
+    }
     
     // Events
     event DepositCreated(
@@ -56,6 +70,16 @@ contract SafeSend {
         uint256 refundAmount
     );
     
+    event FeeCollected(
+        uint256 indexed depositId,
+        uint256 feeAmount
+    );
+    
+    event FeesWithdrawn(
+        address indexed owner,
+        uint256 amount
+    );
+    
     /**
      * @dev Create a new safe send deposit
      * @param recipient Address that will receive the funds
@@ -74,8 +98,13 @@ contract SafeSend {
         require(expiryMinutes > 0 && expiryMinutes <= MAX_EXPIRY_HOURS * 60, "Invalid expiry time");
         
         // Calculate amounts
-        uint256 claimableAmount = msg.value - NOTIFICATION_AMOUNT;
+        uint256 remainingAfterNotification = msg.value - NOTIFICATION_AMOUNT;
+        uint256 platformFee = (remainingAfterNotification * PLATFORM_FEE_PERCENTAGE) / 10000; // 0.5%
+        uint256 claimableAmount = remainingAfterNotification - platformFee;
         uint256 expiryTime = block.timestamp + (expiryMinutes * 60);
+        
+        // Collect platform fee
+        collectedFees += platformFee;
         
         // Send notification amount immediately to recipient
         (bool success, ) = payable(recipient).call{value: NOTIFICATION_AMOUNT}("");
@@ -101,6 +130,8 @@ contract SafeSend {
             NOTIFICATION_AMOUNT,
             expiryTime
         );
+        
+        emit FeeCollected(depositId, platformFee);
     }
     
     /**
@@ -221,5 +252,53 @@ contract SafeSend {
      */
     function getCurrentTime() external view returns (uint256) {
         return block.timestamp;
+    }
+    
+    /**
+     * @dev Withdraw collected platform fees (owner only)
+     * @param amount Amount to withdraw (must be <= collectedFees)
+     */
+    function withdrawFees(uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount must be greater than 0");
+        require(amount <= collectedFees, "Insufficient fees collected");
+        
+        collectedFees -= amount;
+        
+        (bool success, ) = payable(owner).call{value: amount}("");
+        require(success, "Withdrawal failed");
+        
+        emit FeesWithdrawn(owner, amount);
+    }
+    
+    /**
+     * @dev Withdraw all collected platform fees (owner only)
+     */
+    function withdrawAllFees() external onlyOwner {
+        require(collectedFees > 0, "No fees to withdraw");
+        
+        uint256 amount = collectedFees;
+        collectedFees = 0;
+        
+        (bool success, ) = payable(owner).call{value: amount}("");
+        require(success, "Withdrawal failed");
+        
+        emit FeesWithdrawn(owner, amount);
+    }
+    
+    /**
+     * @dev Get the current collected fees amount
+     * @return Amount of fees collected and available for withdrawal
+     */
+    function getCollectedFees() external view returns (uint256) {
+        return collectedFees;
+    }
+    
+    /**
+     * @dev Transfer ownership to a new address (owner only)
+     * @param newOwner Address of the new owner
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner cannot be zero address");
+        owner = newOwner;
     }
 }
