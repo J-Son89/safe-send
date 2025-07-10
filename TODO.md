@@ -22,6 +22,7 @@
 - [ ] Add network switching (Sepolia/mainnet)
 - [ ] Add error handling and transaction status
 - [ ] Test and polish mobile-first design
+- [ ] Add contract link and GitHub commit hash to header for transparency
 
 ## Environment Variables Needed
 - `VITE_CONTRACT_ADDRESS` - SafeSend contract address

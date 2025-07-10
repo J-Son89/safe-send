@@ -123,6 +123,46 @@ function App() {
     alert('Copied to clipboard!')
   }
 
+  const handleReclaimETH = async (depositId) => {
+    if (!walletState.isConnected) {
+      alert('Please connect your wallet first')
+      return
+    }
+
+    try {
+      // Use MetaMask if available, otherwise fall back to WalletConnect
+      let provider
+      
+      if (window.ethereum) {
+        console.log('Using MetaMask for reclaim')
+        provider = new BrowserProvider(window.ethereum)
+      } else {
+        console.log('Using WalletConnect for reclaim')
+        const walletProvider = modal.getWalletProvider()
+        if (!walletProvider) {
+          throw new Error('No wallet provider found')
+        }
+        provider = new BrowserProvider(walletProvider)
+      }
+      
+      const signer = await provider.getSigner()
+      const contractService = new ContractService(provider, signer)
+      
+      console.log('Cancelling deposit:', depositId)
+      
+      // Call the cancel function
+      const result = await contractService.cancelDeposit(depositId)
+      
+      alert(`✅ Deposit #${depositId} cancelled successfully!\nTX: ${result.txHash}`)
+      
+      // Refresh the page or update state to show the deposit is cancelled
+      
+    } catch (error) {
+      console.error('Reclaim error:', error)
+      alert('Failed to reclaim deposit: ' + error.message)
+    }
+  }
+
   const connectMetaMask = async () => {
     if (window.ethereum) {
       try {
@@ -198,7 +238,7 @@ function App() {
         <div className="flex mb-6 bg-gray-800 rounded-lg p-1">
           <button
             onClick={() => setActiveTab('send')}
-            className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'send'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -208,7 +248,7 @@ function App() {
           </button>
           <button
             onClick={() => setActiveTab('claim')}
-            className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'claim'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -217,14 +257,24 @@ function App() {
             Claim
           </button>
           <button
+            onClick={() => setActiveTab('reclaim')}
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
+              activeTab === 'reclaim'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Reclaim
+          </button>
+          <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
               activeTab === 'dashboard'
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            Dashboard
+            History
           </button>
         </div>
 
@@ -238,10 +288,32 @@ function App() {
                 <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
                   <p className="text-green-300 font-medium">✅ Deposit Created!</p>
                   <p className="text-sm text-gray-300 mt-1">
-                    Deposit ID: <span className="font-mono">{txResult.depositId}</span>
+                    Deposit ID: <span className="font-mono text-blue-300">{txResult.depositId}</span>
                   </p>
-                  <p className="text-sm text-gray-300">
-                    TX: <span className="font-mono text-xs">{txResult.txHash}</span>
+                  <div className="text-sm text-gray-300 mt-2">
+                    <p className="mb-1">Transaction:</p>
+                    <a 
+                      href={`https://sepolia.etherscan.io/tx/${txResult.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline font-mono text-xs break-all"
+                    >
+                      {txResult.txHash}
+                    </a>
+                  </div>
+                  <div className="text-sm text-gray-300 mt-2">
+                    <p className="mb-1">Contract:</p>
+                    <a 
+                      href={`https://sepolia.etherscan.io/address/${import.meta.env.VITE_CONTRACT_ADDRESS}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline font-mono text-xs break-all"
+                    >
+                      {import.meta.env.VITE_CONTRACT_ADDRESS}
+                    </a>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    🔗 Click links to view on Sepolia Explorer
                   </p>
                 </div>
               )}
@@ -404,6 +476,86 @@ function App() {
                 </div>
                 <WalletConnect onConnectionChange={handleWalletConnectionChange} />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'reclaim' && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Reclaim Your ETH</h2>
+              <p className="text-gray-400 text-sm mb-4">
+                Cancel expired or unwanted deposits to get your ETH back
+              </p>
+              
+              {!walletState.isConnected ? (
+                <div className="text-center text-gray-400">
+                  <p>Connect your wallet to view reclaimable deposits</p>
+                  {!window.ethereum ? (
+                    <WalletConnect onConnectionChange={handleWalletConnectionChange} />
+                  ) : (
+                    <button 
+                      onClick={connectMetaMask}
+                      className="btn-primary mt-4"
+                    >
+                      🦊 Connect MetaMask
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Mock deposit example - we'll replace with real data later */}
+                  <div className="border border-gray-600 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium">Deposit #42</p>
+                        <p className="text-sm text-gray-400">To: 0x1234...5678</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-orange-400">0.05 ETH</p>
+                        <p className="text-xs text-red-400">Expired</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-gray-500">
+                        Created: 2 hours ago • Expired: 30 min ago
+                      </p>
+                      <button 
+                        onClick={() => handleReclaimETH(42)}
+                        className="btn-secondary text-sm px-3 py-1"
+                      >
+                        🔄 Reclaim ETH
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="border border-gray-600 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium">Deposit #41</p>
+                        <p className="text-sm text-gray-400">To: 0x9876...5432</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-green-400">0.02 ETH</p>
+                        <p className="text-xs text-green-400">Active</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-gray-500">
+                        Created: 25 min ago • Expires in 5 min
+                      </p>
+                      <button 
+                        onClick={() => handleReclaimETH(41)}
+                        className="btn-secondary text-sm px-3 py-1"
+                      >
+                        🔄 Cancel Deposit
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center text-gray-500 text-sm">
+                    <p>💡 You can cancel any deposit you created at any time</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
