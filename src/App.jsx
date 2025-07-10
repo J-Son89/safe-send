@@ -4,6 +4,68 @@ import WalletConnect from './components/WalletConnect'
 import SendForm from './components/SendForm'
 import ContractService from './services/contractService'
 import { modal } from './utils/walletConnect'
+import { Dialog } from '@headlessui/react';
+
+function OnboardingModal({ open, onClose }) {
+  const [showAgain, setShowAgain] = useState(true);
+
+  useEffect(() => {
+    const hide = localStorage.getItem('safesend-onboarding-hide');
+    if (hide) onClose();
+  }, []);
+
+  const handleClose = () => {
+    if (!showAgain) {
+      localStorage.setItem('safesend-onboarding-hide', 'true');
+    }
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+      <Dialog.Panel className="bg-gray-900 text-white p-6 px-2 rounded-2xl max-w-md w-full space-y-4 shadow-lg">
+        <Dialog.Title className="text-xl font-semibold text-center">🚀 Welcome to SafeSend</Dialog.Title>
+        <p className="text-gray-300 text-sm text-center">
+          Send ETH securely with password verification — no more lost funds from copy-paste mistakes.
+        </p>
+
+        <div className="flex flex-col space-y-2 text-sm">
+          <Step icon="🧾" title="Create a SafeSend" desc="Enter amount, recipient, and generate a password." />
+          <Step icon="🔐" title="Secure Deposit" desc="Funds are held safely in the smart contract." />
+          <Step icon="📬" title="Recipient Claims" desc="They use the password to claim the ETH." />
+          <Step icon="🔄" title="Always Recoverable" desc="Cancel any unclaimed deposit at any time." />
+        </div>
+
+        <div className="flex items-center space-x-2 mt-4">
+          <input
+            type="checkbox"
+            checked={!showAgain}
+            onChange={() => setShowAgain(!showAgain)}
+            className="form-checkbox accent-blue-500"
+          />
+          <label className="text-sm text-gray-400">Don’t show this again</label>
+        </div>
+
+        <button
+          onClick={handleClose}
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded-xl"
+        >
+          ✅ Let’s Go
+        </button>
+      </Dialog.Panel>
+    </Dialog>
+  );
+}
+
+const Step = ({ icon, title, desc }) => (
+  <div className="flex items-start space-x-3">
+    <div className="text-lg">{icon}</div>
+    <div>
+      <p className="font-medium">{title}</p>
+      <p className="text-gray-400 text-xs">{desc}</p>
+    </div>
+  </div>
+);
 
 // Simple password generation function
 const generatePassword = () => {
@@ -21,7 +83,7 @@ const formatTimeAgo = (date) => {
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
-  
+
   if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
   if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
   if (diffMins > 0) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`
@@ -35,7 +97,7 @@ const formatTimeUntil = (date) => {
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
-  
+
   if (diffMs <= 0) return 'Expired'
   if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''}`
   if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''}`
@@ -51,24 +113,24 @@ function App() {
     const validTabs = ['send', 'claim', 'reclaim', 'dashboard']
     return validTabs.includes(tabFromUrl) ? tabFromUrl : 'send'
   }
-  
+
   const [activeTab, setActiveTab] = useState(getInitialTab())
-  
+
   // Function to update URL when tab changes
   const updateActiveTab = (newTab) => {
     setActiveTab(newTab)
-    
+
     // Update URL without page reload
     const url = new URL(window.location)
     url.searchParams.set('tab', newTab)
     window.history.pushState({}, '', url)
   }
-  
+
   const [walletState, setWalletState] = useState({
     isConnected: false,
     address: null
   })
-  
+
   // Send form state
   const [sendForm, setSendForm] = useState({
     amount: '',
@@ -79,17 +141,17 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [txResult, setTxResult] = useState(null)
   const [errors, setErrors] = useState({})
-  
+
   // Reclaim tab state
   const [userDeposits, setUserDeposits] = useState([])
   const [depositsLoading, setDepositsLoading] = useState(false)
-  
+
   // Dashboard/History tab state
   const [allDeposits, setAllDeposits] = useState([])
   const [allDepositsLoading, setAllDepositsLoading] = useState(false)
   const [depositFilter, setDepositFilter] = useState('all') // 'all', 'sent', 'received'
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Claim tab state
   const [claimableDeposits, setClaimableDeposits] = useState([])
   const [claimableLoading, setClaimableLoading] = useState(false)
@@ -121,7 +183,7 @@ function App() {
     if (!sendForm.password) {
       newErrors.password = 'Password is required'
     }
-    
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
@@ -134,7 +196,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         console.log('Using MetaMask browser extension')
         provider = new BrowserProvider(window.ethereum)
@@ -146,18 +208,18 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
-      
+
       console.log('Provider:', provider)
       console.log('Signer:', signer)
       console.log('Network:', await provider.getNetwork())
-      
+
       console.log('Attempting to send transaction...')
-      
+
       // Create contract service
       const contractService = new ContractService(provider, signer)
-      
+
       // Create deposit
       const result = await contractService.createDeposit(
         sendForm.recipient,
@@ -167,7 +229,7 @@ function App() {
       )
 
       setTxResult(result)
-      
+
       // Reset form on success
       setSendForm({
         amount: '',
@@ -175,7 +237,7 @@ function App() {
         password: '',
         expiryMinutes: '30'
       })
-      
+
       // Refresh deposits after sending
       if (activeTab === 'reclaim') {
         loadUserDeposits()
@@ -206,7 +268,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         provider = new BrowserProvider(window.ethereum)
       } else {
@@ -216,18 +278,18 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
       const contractService = new ContractService(provider, signer)
-      
+
       console.log('Loading deposits for user:', walletState.address)
-      
+
       // Get user's deposits
       const deposits = await contractService.getDepositsForUser(walletState.address)
-      
+
       console.log('Found deposits:', deposits)
       setUserDeposits(deposits)
-      
+
     } catch (error) {
       console.error('Error loading deposits:', error)
       setUserDeposits([])
@@ -245,7 +307,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         provider = new BrowserProvider(window.ethereum)
       } else {
@@ -255,18 +317,18 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
       const contractService = new ContractService(provider, signer)
-      
+
       console.log('Loading all deposits for user:', walletState.address)
-      
+
       // Get all user's deposits (sent and received)
       const deposits = await contractService.getAllDepositsForUser(walletState.address)
-      
+
       console.log('Found all deposits:', deposits)
       setAllDeposits(deposits)
-      
+
     } catch (error) {
       console.error('Error loading all deposits:', error)
       setAllDeposits([])
@@ -284,7 +346,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         provider = new BrowserProvider(window.ethereum)
       } else {
@@ -294,21 +356,21 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
       const contractService = new ContractService(provider, signer)
-      
+
       console.log('Loading claimable deposits for user:', walletState.address)
-      
+
       // Get all user's deposits and filter for claimable ones
       const allDeposits = await contractService.getAllDepositsForUser(walletState.address)
       const claimable = allDeposits.filter(d => d.canClaim)
-      
+
       console.log('All deposits for user:', allDeposits)
       console.log('Filtered claimable deposits:', claimable)
       console.log('Claimable count:', claimable.length)
       setClaimableDeposits(claimable)
-      
+
     } catch (error) {
       console.error('Error loading claimable deposits:', error)
       setClaimableDeposits([])
@@ -325,7 +387,7 @@ function App() {
     }
 
     const password = claimPasswords[depositId]
-    
+
     // Validate password
     if (!password) {
       setClaimErrors(prev => ({ ...prev, [depositId]: 'Password is required' }))
@@ -338,7 +400,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         console.log('Using MetaMask for claim')
         provider = new BrowserProvider(window.ethereum)
@@ -350,20 +412,20 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
       const contractService = new ContractService(provider, signer)
-      
+
       console.log('Attempting to claim deposit:', depositId)
-      
+
       // Claim deposit
       const result = await contractService.claimDeposit(depositId, password)
 
       setClaimResults(prev => ({ ...prev, [depositId]: result }))
-      
+
       // Clear password after successful claim
       setClaimPasswords(prev => ({ ...prev, [depositId]: '' }))
-      
+
       // Refresh deposits after claiming
       loadClaimableDeposits()
       if (activeTab === 'dashboard') {
@@ -387,7 +449,7 @@ function App() {
     try {
       // Use MetaMask if available, otherwise fall back to WalletConnect
       let provider
-      
+
       if (window.ethereum) {
         console.log('Using MetaMask for reclaim')
         provider = new BrowserProvider(window.ethereum)
@@ -399,17 +461,17 @@ function App() {
         }
         provider = new BrowserProvider(walletProvider)
       }
-      
+
       const signer = await provider.getSigner()
       const contractService = new ContractService(provider, signer)
-      
+
       console.log('Cancelling deposit:', depositId)
-      
+
       // Call the cancel function
       const result = await contractService.cancelDeposit(depositId)
-      
+
       alert(`✅ Deposit #${depositId} cancelled successfully!\nTX: ${result.txHash}`)
-      
+
       // Reload deposits to show updated status
       if (activeTab === 'reclaim') {
         loadUserDeposits()
@@ -417,7 +479,7 @@ function App() {
       if (activeTab === 'dashboard') {
         loadAllDeposits()
       }
-      
+
     } catch (error) {
       console.error('Reclaim error:', error)
       alert('Failed to reclaim deposit: ' + error.message)
@@ -505,7 +567,7 @@ function App() {
       const newTab = getInitialTab()
       setActiveTab(newTab)
     }
-    
+
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
@@ -513,29 +575,40 @@ function App() {
   // Filter deposits based on search and filter criteria
   const getFilteredDeposits = () => {
     if (!allDeposits.length) return []
-    
+
     let filtered = allDeposits
-    
+
     // Filter by type
     if (depositFilter === 'sent') {
       filtered = filtered.filter(d => d.type === 'sent')
     } else if (depositFilter === 'received') {
       filtered = filtered.filter(d => d.type === 'received')
     }
-    
+
     // Filter by search term
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
-      filtered = filtered.filter(d => 
+      filtered = filtered.filter(d =>
         d.id.toString().includes(search) ||
         d.recipient.toLowerCase().includes(search) ||
         d.depositor.toLowerCase().includes(search) ||
         d.amount.toString().includes(search)
       )
     }
-    
+
     return filtered
   }
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [hasShownOnce, setHasShownOnce] = useState(false);
+
+  useEffect(() => {
+    const skip = localStorage.getItem('safesend-onboarding-hide');
+    if (!skip) {
+      setModalOpen(true);
+      setHasShownOnce(true);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -546,45 +619,42 @@ function App() {
           <p className="text-gray-400">Secure ETH transfers with password verification</p>
         </div>
 
+
         {/* Navigation Tabs */}
         <div className="flex mb-6 bg-gray-800 rounded-lg p-1">
           <button
             onClick={() => updateActiveTab('send')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-              activeTab === 'send'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'send'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             Send
           </button>
           <button
             onClick={() => updateActiveTab('claim')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-              activeTab === 'claim'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'claim'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             Claim
           </button>
           <button
             onClick={() => updateActiveTab('reclaim')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-              activeTab === 'reclaim'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'reclaim'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             Reclaim
           </button>
           <button
             onClick={() => updateActiveTab('dashboard')}
-            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-              activeTab === 'dashboard'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${activeTab === 'dashboard'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             History
           </button>
@@ -595,7 +665,7 @@ function App() {
           {activeTab === 'send' && (
             <div>
               <h2 className="text-xl font-semibold mb-4">Send ETH</h2>
-              
+
               {txResult && (
                 <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
                   <p className="text-green-300 font-medium">✅ Deposit Created!</p>
@@ -604,7 +674,7 @@ function App() {
                   </p>
                   <div className="text-sm text-gray-300 mt-2">
                     <p className="mb-1">Transaction:</p>
-                    <a 
+                    <a
                       href={`https://sepolia.etherscan.io/tx/${txResult.txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -615,7 +685,7 @@ function App() {
                   </div>
                   <div className="text-sm text-gray-300 mt-2">
                     <p className="mb-1">Contract:</p>
-                    <a 
+                    <a
                       href={`https://sepolia.etherscan.io/address/${import.meta.env.VITE_CONTRACT_ADDRESS}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -629,7 +699,7 @@ function App() {
                   </p>
                 </div>
               )}
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -687,7 +757,7 @@ function App() {
                     </button>
                   </div>
                   {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password}</p>}
-                  
+
                   {sendForm.password && (
                     <div className="mt-2 p-2 bg-gray-700 rounded border-l-4 border-blue-500">
                       <div className="flex items-center justify-between">
@@ -711,7 +781,7 @@ function App() {
                   <label className="block text-sm font-medium text-gray-300 mb-1">
                     Expires in
                   </label>
-                  <select 
+                  <select
                     value={sendForm.expiryMinutes}
                     onChange={(e) => setSendForm(prev => ({ ...prev, expiryMinutes: e.target.value }))}
                     className="input-field w-full"
@@ -725,23 +795,23 @@ function App() {
                     <option value="1440">24 hours</option>
                   </select>
                 </div>
-                
+
                 {errors.submit && (
                   <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
                     <p className="text-red-300 text-sm">{errors.submit}</p>
                   </div>
                 )}
-                
+
                 {!window.ethereum ? (
                   <WalletConnect onConnectionChange={handleWalletConnectionChange} />
                 ) : (
                   <div className="text-center">
                     {walletState.isConnected ? (
                       <p className="text-sm text-gray-400">
-                        ✅ MetaMask Connected: {walletState.address?.slice(0,6)}...{walletState.address?.slice(-4)}
+                        ✅ MetaMask Connected: {walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)}
                       </p>
                     ) : (
-                      <button 
+                      <button
                         onClick={connectMetaMask}
                         className="btn-primary w-full"
                       >
@@ -750,8 +820,8 @@ function App() {
                     )}
                   </div>
                 )}
-                
-                <button 
+
+                <button
                   onClick={handleSendETH}
                   disabled={isLoading}
                   className="btn-primary w-full text-lg font-semibold"
@@ -767,7 +837,7 @@ function App() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Claim ETH</h2>
                 {walletState.isConnected && (
-                  <button 
+                  <button
                     onClick={loadClaimableDeposits}
                     disabled={claimableLoading}
                     className="btn-secondary text-sm px-3 py-1"
@@ -779,14 +849,14 @@ function App() {
               <p className="text-gray-400 text-sm mb-4">
                 Enter the password for each deposit to claim your ETH
               </p>
-              
+
               {!walletState.isConnected ? (
                 <div className="text-center text-gray-400">
                   <p>Connect your wallet to view claimable deposits</p>
                   {!window.ethereum ? (
                     <WalletConnect onConnectionChange={handleWalletConnectionChange} />
                   ) : (
-                    <button 
+                    <button
                       onClick={connectMetaMask}
                       className="btn-primary mt-4"
                     >
@@ -820,7 +890,7 @@ function App() {
                           <div className="mb-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
                             <p className="text-green-300 font-medium text-sm">✅ Claimed Successfully!</p>
                             <div className="text-xs text-gray-300 mt-1">
-                              <a 
+                              <a
                                 href={`https://sepolia.etherscan.io/tx/${claimResults[deposit.id].txHash}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -831,7 +901,7 @@ function App() {
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <div className="flex items-center gap-2">
@@ -849,7 +919,7 @@ function App() {
                             <p className="text-xs text-green-400">Active</p>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-3">
                           <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -859,9 +929,9 @@ function App() {
                               type="text"
                               placeholder="Enter password to claim"
                               value={claimPasswords[deposit.id] || ''}
-                              onChange={(e) => setClaimPasswords(prev => ({ 
-                                ...prev, 
-                                [deposit.id]: e.target.value 
+                              onChange={(e) => setClaimPasswords(prev => ({
+                                ...prev,
+                                [deposit.id]: e.target.value
                               }))}
                               className={`input-field w-full ${claimErrors[deposit.id] ? 'border-red-500' : ''}`}
                               disabled={claimingDeposits[deposit.id] || claimResults[deposit.id]}
@@ -870,15 +940,15 @@ function App() {
                               <p className="text-red-400 text-sm mt-1">{claimErrors[deposit.id]}</p>
                             )}
                           </div>
-                          
+
                           <div className="flex justify-between items-center">
                             <p className="text-xs text-gray-500">
-                              Expires: {deposit.expiryTime.toLocaleString()} • 
+                              Expires: {deposit.expiryTime.toLocaleString()} •
                               Expires in {formatTimeUntil(deposit.expiryTime)}
                             </p>
-                            
+
                             {!claimResults[deposit.id] && (
-                              <button 
+                              <button
                                 onClick={() => handleClaimETH(deposit.id)}
                                 disabled={claimingDeposits[deposit.id] || !claimPasswords[deposit.id]}
                                 className="btn-primary text-sm px-4 py-2"
@@ -891,7 +961,7 @@ function App() {
                       </div>
                     ))
                   )}
-                  
+
                   <div className="text-center text-gray-500 text-sm">
                     <p>💡 Ask the sender for the password to claim each deposit</p>
                   </div>
@@ -906,14 +976,14 @@ function App() {
               <p className="text-gray-400 text-sm mb-4">
                 Cancel deposits you created to get your ETH back
               </p>
-              
+
               {!walletState.isConnected ? (
                 <div className="text-center text-gray-400">
                   <p>Connect your wallet to view reclaimable deposits</p>
                   {!window.ethereum ? (
                     <WalletConnect onConnectionChange={handleWalletConnectionChange} />
                   ) : (
-                    <button 
+                    <button
                       onClick={connectMetaMask}
                       className="btn-primary mt-4"
                     >
@@ -953,22 +1023,21 @@ function App() {
                             </div>
                             <div className="text-right">
                               <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
-                              <p className={`text-xs ${
-                                deposit.isExpired ? 'text-red-400' : 'text-green-400'
-                              }`}>
+                              <p className={`text-xs ${deposit.isExpired ? 'text-red-400' : 'text-green-400'
+                                }`}>
                                 {deposit.isExpired ? 'Expired' : 'Active'}
                               </p>
                             </div>
                           </div>
                           <div className="flex justify-between items-center">
                             <p className="text-xs text-gray-500">
-                              Expires: {deposit.expiryTime.toLocaleString()} • 
-                              {deposit.isExpired ? 
-                                `Expired ${formatTimeAgo(deposit.expiryTime)}` : 
+                              Expires: {deposit.expiryTime.toLocaleString()} •
+                              {deposit.isExpired ?
+                                `Expired ${formatTimeAgo(deposit.expiryTime)}` :
                                 `Expires in ${formatTimeUntil(deposit.expiryTime)}`
                               }
                             </p>
-                            <button 
+                            <button
                               onClick={() => handleReclaimETH(deposit.id)}
                               className="btn-secondary text-sm px-3 py-1"
                             >
@@ -978,7 +1047,7 @@ function App() {
                         </div>
                       ))
                   )}
-                  
+
                   <div className="text-center text-gray-500 text-sm">
                     <p>💡 You can cancel any deposit you created at any time</p>
                   </div>
@@ -990,14 +1059,14 @@ function App() {
           {activeTab === 'dashboard' && (
             <div>
               <h2 className="text-xl font-semibold mb-4">Your Deposits</h2>
-              
+
               {!walletState.isConnected ? (
                 <div className="text-center text-gray-400">
                   <p>Connect your wallet to view all your deposits</p>
                   {!window.ethereum ? (
                     <WalletConnect onConnectionChange={handleWalletConnectionChange} />
                   ) : (
-                    <button 
+                    <button
                       onClick={connectMetaMask}
                       className="btn-primary mt-4"
                     >
@@ -1016,35 +1085,32 @@ function App() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="input-field w-full text-sm"
                     />
-                    
+
                     <div className="flex gap-2">
                       <button
                         onClick={() => setDepositFilter('all')}
-                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-                          depositFilter === 'all'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-400 hover:text-white'
-                        }`}
+                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${depositFilter === 'all'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:text-white'
+                          }`}
                       >
                         All
                       </button>
                       <button
                         onClick={() => setDepositFilter('sent')}
-                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-                          depositFilter === 'sent'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-400 hover:text-white'
-                        }`}
+                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${depositFilter === 'sent'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:text-white'
+                          }`}
                       >
                         Sent
                       </button>
                       <button
                         onClick={() => setDepositFilter('received')}
-                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${
-                          depositFilter === 'received'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-400 hover:text-white'
-                        }`}
+                        className={`flex-1 py-2 px-3 rounded-md font-medium transition-colors text-sm ${depositFilter === 'received'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:text-white'
+                          }`}
                       >
                         Received
                       </button>
@@ -1059,10 +1125,10 @@ function App() {
                   ) : getFilteredDeposits().length === 0 ? (
                     <div className="text-center text-gray-400">
                       <p>
-                        {searchTerm ? 'No deposits match your search' : 
-                         depositFilter === 'all' ? 'No deposits found' :
-                         depositFilter === 'sent' ? 'No deposits sent' :
-                         'No deposits received'}
+                        {searchTerm ? 'No deposits match your search' :
+                          depositFilter === 'all' ? 'No deposits found' :
+                            depositFilter === 'sent' ? 'No deposits sent' :
+                              'No deposits received'}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         {depositFilter === 'all' && !searchTerm && 'Deposits you send or receive will appear here'}
@@ -1075,14 +1141,13 @@ function App() {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-medium">Deposit #{deposit.id}</p>
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                deposit.type === 'sent' ? 'bg-orange-900/30 text-orange-300' : 'bg-green-900/30 text-green-300'
-                              }`}>
+                              <span className={`text-xs px-2 py-1 rounded-full ${deposit.type === 'sent' ? 'bg-orange-900/30 text-orange-300' : 'bg-green-900/30 text-green-300'
+                                }`}>
                                 {deposit.type === 'sent' ? '📤 Sent' : '📥 Received'}
                               </span>
                             </div>
                             <p className="text-sm text-gray-400">
-                              {deposit.type === 'sent' ? 
+                              {deposit.type === 'sent' ?
                                 `To: ${deposit.recipient.slice(0, 6)}...${deposit.recipient.slice(-4)}` :
                                 `From: ${deposit.depositor.slice(0, 6)}...${deposit.depositor.slice(-4)}`
                               }
@@ -1090,31 +1155,30 @@ function App() {
                           </div>
                           <div className="text-right">
                             <p className="font-medium text-blue-400">{deposit.amount} ETH</p>
-                            <p className={`text-xs ${
-                              deposit.claimed ? 'text-green-400' : 
-                              deposit.cancelled ? 'text-gray-400' : 
-                              deposit.isExpired ? 'text-red-400' : 
-                              'text-green-400'
-                            }`}>
-                              {deposit.claimed ? 'Claimed' : 
-                               deposit.cancelled ? 'Cancelled' : 
-                               deposit.isExpired ? 'Expired' : 
-                               'Active'}
+                            <p className={`text-xs ${deposit.claimed ? 'text-green-400' :
+                              deposit.cancelled ? 'text-gray-400' :
+                                deposit.isExpired ? 'text-red-400' :
+                                  'text-green-400'
+                              }`}>
+                              {deposit.claimed ? 'Claimed' :
+                                deposit.cancelled ? 'Cancelled' :
+                                  deposit.isExpired ? 'Expired' :
+                                    'Active'}
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex justify-between items-center">
                           <p className="text-xs text-gray-500">
-                            Expires: {deposit.expiryTime.toLocaleString()} • 
-                            {deposit.isExpired ? 
-                              `Expired ${formatTimeAgo(deposit.expiryTime)}` : 
+                            Expires: {deposit.expiryTime.toLocaleString()} •
+                            {deposit.isExpired ?
+                              `Expired ${formatTimeAgo(deposit.expiryTime)}` :
                               `Expires in ${formatTimeUntil(deposit.expiryTime)}`
                             }
                           </p>
                           <div className="flex gap-2">
                             {deposit.canClaim && (
-                              <button 
+                              <button
                                 onClick={() => updateActiveTab('claim')}
                                 className="btn-primary text-sm px-3 py-1"
                               >
@@ -1122,7 +1186,7 @@ function App() {
                               </button>
                             )}
                             {deposit.canCancel && (
-                              <button 
+                              <button
                                 onClick={() => handleReclaimETH(deposit.id)}
                                 className="btn-secondary text-sm px-3 py-1"
                               >
@@ -1134,7 +1198,7 @@ function App() {
                       </div>
                     ))
                   )}
-                  
+
                   <div className="text-center text-gray-500 text-sm">
                     <p>💡 Shows all deposits sent to or from your address</p>
                   </div>
@@ -1142,8 +1206,16 @@ function App() {
               )}
             </div>
           )}
+
+        </div>
+        <div className="flex justify-center pt-2">
+          <button className="text-sm text-gray-300 hover:text-white">
+            ❓ How It Works
+          </button>
         </div>
       </div>
+      <OnboardingModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
     </div>
   )
 }
