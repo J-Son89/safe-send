@@ -14,13 +14,35 @@ export default function HistoryPage({
   onTabChange,
   onReclaimETH,
   filteredDeposits,
+  onLoadAllDeposits,
   connectMetaMask,
   WalletConnect,
   onWalletConnectionChange
 }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Your Deposits</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Your Deposits</h2>
+        {walletState.isConnected && (
+          <button
+            onClick={onLoadAllDeposits}
+            disabled={allDepositsLoading}
+            className="btn-secondary text-sm px-3 py-1 flex items-center gap-1 transition-all duration-200"
+          >
+            {allDepositsLoading ? (
+              <>
+                <LoadingSpinner size="sm" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Refresh</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
 
       {!walletState.isConnected ? (
         <div className="text-center text-gray-400">

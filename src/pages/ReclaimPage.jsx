@@ -6,16 +6,40 @@ export default function ReclaimPage({
   userDeposits,
   depositsLoading,
   onReclaimETH,
+  onLoadUserDeposits,
   connectMetaMask,
   WalletConnect,
   onWalletConnectionChange
 }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Reclaim Your ETH</h2>
-      <p className="text-gray-400 text-sm mb-4">
-        Cancel deposits you created to get your ETH back
-      </p>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-xl font-semibold">Reclaim Your ETH</h2>
+          <p className="text-gray-400 text-sm">
+            Cancel deposits you created to get your ETH back
+          </p>
+        </div>
+        {walletState.isConnected && (
+          <button
+            onClick={onLoadUserDeposits}
+            disabled={depositsLoading}
+            className="btn-secondary text-sm px-3 py-1 flex items-center gap-1 transition-all duration-200"
+          >
+            {depositsLoading ? (
+              <>
+                <LoadingSpinner size="sm" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Refresh</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
 
       {!walletState.isConnected ? (
         <div className="text-center text-gray-400">

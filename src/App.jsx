@@ -637,6 +637,7 @@ function App() {
               userDeposits={userDeposits}
               depositsLoading={depositsLoading}
               onReclaimETH={handleReclaimETH}
+              onLoadUserDeposits={loadUserDeposits}
               connectMetaMask={connectMetaMask}
               WalletConnect={WalletConnect}
               onWalletConnectionChange={handleWalletConnectionChange}
@@ -655,6 +656,7 @@ function App() {
               onTabChange={updateActiveTab}
               onReclaimETH={handleReclaimETH}
               filteredDeposits={filteredDeposits}
+              onLoadAllDeposits={loadAllDeposits}
               connectMetaMask={connectMetaMask}
               WalletConnect={WalletConnect}
               onWalletConnectionChange={handleWalletConnectionChange}
