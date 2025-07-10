@@ -12,7 +12,7 @@ export default function HistoryPage({
   onSearchTermChange,
   onTabChange,
   onReclaimETH,
-  getFilteredDeposits,
+  filteredDeposits,
   connectMetaMask,
   WalletConnect,
   onWalletConnectionChange
@@ -81,7 +81,7 @@ export default function HistoryPage({
           {/* Deposits List */}
           {allDepositsLoading ? (
             <LoadingSpinner text="Loading your deposits..." />
-          ) : getFilteredDeposits().length === 0 ? (
+          ) : filteredDeposits.length === 0 ? (
             <div className="text-center text-gray-400">
               <p>
                 {searchTerm ? 'No deposits match your search' :
@@ -94,7 +94,7 @@ export default function HistoryPage({
               </p>
             </div>
           ) : (
-            getFilteredDeposits().map((deposit) => (
+            filteredDeposits.map((deposit) => (
               <div key={deposit.id} className="border border-gray-600 rounded-lg p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -127,15 +127,14 @@ export default function HistoryPage({
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-gray-500">
-                    Expires: {deposit.expiryTime.toLocaleString()} •
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+                  <p className="text-xs text-gray-500 break-words">
                     {deposit.isExpired ?
                       `Expired ${formatTimeAgo(deposit.expiryTime)}` :
                       `Expires in ${formatTimeUntil(deposit.expiryTime)}`
                     }
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     {deposit.canClaim && (
                       <button
                         onClick={() => onTabChange(TAB_NAMES.CLAIM)}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BrowserProvider } from 'ethers'
 import WalletConnect from './components/WalletConnect'
 import ContractService from './services/contractService'
@@ -527,8 +527,8 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  // Filter deposits based on search and filter criteria
-  const getFilteredDeposits = () => {
+  // Memoized filtered deposits to avoid recalculating on every render
+  const filteredDeposits = useMemo(() => {
     if (!allDeposits.length) return []
 
     let filtered = allDeposits
@@ -552,7 +552,7 @@ function App() {
     }
 
     return filtered
-  }
+  }, [allDeposits, depositFilter, searchTerm])
 
   const [modalOpen, setModalOpen] = useState(false);
   const [hasShownOnce, setHasShownOnce] = useState(false);
@@ -637,7 +637,7 @@ function App() {
               onSearchTermChange={setSearchTerm}
               onTabChange={updateActiveTab}
               onReclaimETH={handleReclaimETH}
-              getFilteredDeposits={getFilteredDeposits}
+              filteredDeposits={filteredDeposits}
               connectMetaMask={connectMetaMask}
               WalletConnect={WalletConnect}
               onWalletConnectionChange={handleWalletConnectionChange}

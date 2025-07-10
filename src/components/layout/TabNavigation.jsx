@@ -21,7 +21,8 @@ export default function TabNavigation({ activeTab, onTabChange }) {
           }`}
         >
           <span>{tab.icon}</span>
-          {tab.label}
+          <span className="hidden sm:inline">{tab.label}</span>
+          <span className="sm:hidden">{tab.id === TAB_NAMES.HISTORY ? 'Log' : tab.label}</span>
         </button>
       ))}
     </div>
