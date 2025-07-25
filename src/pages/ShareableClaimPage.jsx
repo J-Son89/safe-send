@@ -20,6 +20,8 @@ export default function ShareableClaimPage({
   const [claimResult, setClaimResult] = useState(null)
   const [error, setError] = useState(null)
   const [passwordInput, setPasswordInput] = useState(password || '')
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [walletAddress, setWalletAddress] = useState(null)
 
   // Load the specific deposit
   const loadDeposit = async () => {
@@ -54,6 +56,18 @@ export default function ShareableClaimPage({
 
       setDeposit(depositData)
       setError(null)
+      
+      // Check if we have a connected wallet to validate authorization
+      if (walletState.isConnected && walletState.account) {
+        const userAddress = walletState.account.toLowerCase()
+        const isRecipient = depositData.recipient.toLowerCase() === userAddress
+        const isDepositor = depositData.depositor.toLowerCase() === userAddress
+        setIsAuthorized(isRecipient || isDepositor)
+        setWalletAddress(userAddress)
+      } else {
+        setIsAuthorized(false)
+        setWalletAddress(null)
+      }
 
     } catch (error) {
       console.error('Error loading deposit:', error)
@@ -121,6 +135,20 @@ export default function ShareableClaimPage({
     }
   }, [depositId])
 
+  // Re-check authorization when wallet state changes
+  useEffect(() => {
+    if (deposit && walletState.isConnected && walletState.account) {
+      const userAddress = walletState.account.toLowerCase()
+      const isRecipient = deposit.recipient.toLowerCase() === userAddress
+      const isDepositor = deposit.depositor.toLowerCase() === userAddress
+      setIsAuthorized(isRecipient || isDepositor)
+      setWalletAddress(userAddress)
+    } else {
+      setIsAuthorized(false)
+      setWalletAddress(null)
+    }
+  }, [walletState.isConnected, walletState.account, deposit])
+
   if (!depositId) {
     return (
       <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
@@ -141,7 +169,6 @@ export default function ShareableClaimPage({
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">SafeSend</h1>
-          <p className="text-sm sm:text-base text-gray-400">Claim your ETH transfer</p>
         </div>
 
         <div className="card">
@@ -155,7 +182,51 @@ export default function ShareableClaimPage({
                 Go to SafeSend
               </a>
             </div>
-          ) : deposit ? (
+          ) : !walletState.isConnected ? (
+            <div className="text-center">
+              <h2 className="text-xl font-semibold mb-4">Connect Wallet Required</h2>
+              <p className="text-gray-400 mb-4">Please connect your wallet to view this deposit</p>
+              
+              {!window.ethereum ? (
+                <WalletConnectComponent onConnectionChange={onWalletConnectionChange} />
+              ) : (
+                <button
+                  onClick={connectMetaMask}
+                  className="btn-primary"
+                >
+                  🦊 Connect MetaMask
+                </button>
+              )}
+              
+              <div className="text-center mt-6">
+                <a 
+                  href="https://safe-send-3f3cbc0807c0.herokuapp.com/" 
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  ← Go to SafeSend
+                </a>
+              </div>
+            </div>
+          ) : deposit && !isAuthorized ? (
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-red-400 mb-4">Access Denied</h2>
+              <p className="text-gray-400 mb-4">
+                This deposit can only be viewed by the sender or recipient.
+              </p>
+              <p className="text-sm text-gray-500 mb-4">
+                Connected wallet: {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+              </p>
+              
+              <div className="text-center mt-6">
+                <a 
+                  href="https://safe-send-3f3cbc0807c0.herokuapp.com/" 
+                  className="btn-primary"
+                >
+                  Go to SafeSend
+                </a>
+              </div>
+            </div>
+          ) : deposit && isAuthorized ? (
             <div>
               <h2 className="text-xl font-semibold mb-4">Claim ETH Transfer</h2>
               
@@ -204,22 +275,8 @@ export default function ShareableClaimPage({
                 </div>
               </div>
 
-              {/* Wallet Connection */}
-              {!walletState.isConnected ? (
-                <div className="text-center text-gray-400 mb-4">
-                  <p className="mb-4">Connect your wallet to claim this deposit</p>
-                  {!window.ethereum ? (
-                    <WalletConnectComponent onConnectionChange={onWalletConnectionChange} />
-                  ) : (
-                    <button
-                      onClick={connectMetaMask}
-                      className="btn-primary"
-                    >
-                      🦊 Connect MetaMask
-                    </button>
-                  )}
-                </div>
-              ) : deposit.claimed ? (
+              {/* Deposit Status Checks */}
+              {deposit.claimed ? (
                 <div className="text-center text-gray-400">
                   <p>This deposit has already been claimed.</p>
                 </div>
@@ -247,9 +304,6 @@ export default function ShareableClaimPage({
                       disabled={claiming}
                       readOnly={!!password} // Make readonly if password was provided in URL
                     />
-                    {password && (
-                      <p className="text-xs text-green-400 mt-1">✅ Password pre-filled from link</p>
-                    )}
                     {error && (
                       <p className="text-red-400 text-sm mt-1">{error}</p>
                     )}
@@ -271,11 +325,6 @@ export default function ShareableClaimPage({
                     )}
                   </button>
 
-                  {password && !claimResult && (
-                    <p className="text-xs text-gray-500 text-center">
-                      💡 Password has been pre-filled. Just click claim!
-                    </p>
-                  )}
                 </div>
               )}
 

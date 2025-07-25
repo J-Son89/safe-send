@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BrowserProvider } from 'ethers'
 import ContractService from '../services/contractService'
 import { generateSecurePassword } from '../utils/passwordGenerator'
+import { getBlockExplorerUrl, getBlockExplorerName } from '../utils/blockExplorer'
 
 export default function SendForm({ isConnected, account }) {
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ export default function SendForm({ isConnected, account }) {
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [txResult, setTxResult] = useState(null)
+  const [chainId, setChainId] = useState(null)
 
   const handleGenerate = () => {
     const newPassword = generateSecurePassword()
@@ -54,6 +56,10 @@ export default function SendForm({ isConnected, account }) {
       // Get provider and signer
       const provider = new BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
+      
+      // Get network info for block explorer
+      const network = await provider.getNetwork()
+      setChainId(Number(network.chainId))
       
       // Create contract service
       const contractService = new ContractService(provider, signer)
@@ -108,9 +114,19 @@ export default function SendForm({ isConnected, account }) {
           <p className="text-sm text-gray-300 mt-1">
             Deposit ID: <span className="font-mono">{txResult.depositId}</span>
           </p>
-          <p className="text-sm text-gray-300">
+          <div className="text-sm text-gray-300 mt-1">
             TX: <span className="font-mono text-xs">{txResult.txHash}</span>
-          </p>
+            {chainId && getBlockExplorerUrl(chainId, txResult.txHash) && (
+              <a
+                href={getBlockExplorerUrl(chainId, txResult.txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-2 text-blue-400 hover:text-blue-300 underline text-xs"
+              >
+                View on {getBlockExplorerName(chainId)}
+              </a>
+            )}
+          </div>
         </div>
       )}
       
@@ -158,14 +174,26 @@ export default function SendForm({ isConnected, account }) {
             Password
           </label>
           <div className="flex gap-2">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={formData.password}
-              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-              className={`input-field flex-1 ${errors.password ? 'border-red-500' : ''}`}
-              placeholder="Click generate or enter manually"
-              disabled={isLoading}
-            />
+            <div className="relative flex-1">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                readOnly
+                className={`input-field w-full pr-10 ${errors.password ? 'border-red-500' : ''} ${!formData.password ? 'text-gray-500' : ''}`}
+                placeholder="Click generate to create password"
+                disabled={isLoading}
+              />
+              {formData.password && (
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  disabled={isLoading}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={handleGenerate}
