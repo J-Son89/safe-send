@@ -50,10 +50,10 @@ export default function SendPage({
               <p className="text-blue-300 font-medium mb-2">📋 Deposit Details:</p>
               <div className="space-y-1 text-gray-300">
                 <p>• ID: <span className="font-mono text-blue-300">#{txResult.depositId}</span></p>
-                <p>• Amount: <span className="text-green-400">{formData.amount} ETH</span></p>
-                <p>• To: <span className="font-mono">{formData.recipient.slice(0,8)}...{formData.recipient.slice(-6)}</span></p>
-                <p>• Expires: <span className="text-yellow-400">{formData.expiryMinutes} minutes</span></p>
-                <p>• Password: <span className="font-mono text-purple-300">{formData.password}</span></p>
+                <p>• Amount: <span className="text-green-400">{txResult.formData?.amount || formData.amount} ETH</span></p>
+                <p>• To: <span className="font-mono">{(txResult.formData?.recipient || formData.recipient).slice(0,8)}...{(txResult.formData?.recipient || formData.recipient).slice(-6)}</span></p>
+                <p>• Expires: <span className="text-yellow-400">{txResult.formData?.expiryMinutes || formData.expiryMinutes} minutes</span></p>
+                <p>• Password: <span className="font-mono text-purple-300">{txResult.formData?.password || formData.password}</span></p>
               </div>
             </div>
             
@@ -67,13 +67,36 @@ export default function SendPage({
               </div>
             </div>
             
+            {/* Shareable Claim Link */}
+            {txResult.depositId && txResult.formData?.password && (
+              <div className="bg-green-900/30 rounded p-3">
+                <p className="text-green-300 font-medium mb-2">🔗 Shareable Claim Link:</p>
+                <div className="space-y-2">
+                  <div className="bg-gray-800/50 rounded p-2 font-mono text-xs break-all text-gray-300">
+                    {`https://safe-send-3f3cbc0807c0.herokuapp.com/?tab=claim&deposit=${txResult.depositId}&password=${encodeURIComponent(txResult.formData.password)}`}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const shareableLink = `https://safe-send-3f3cbc0807c0.herokuapp.com/?tab=claim&deposit=${txResult.depositId}&password=${encodeURIComponent(txResult.formData.password)}`
+                      navigator.clipboard.writeText(shareableLink)
+                      alert('📋 Claim link copied to clipboard!')
+                    }}
+                    className="btn-secondary w-full text-sm"
+                  >
+                    📋 Copy Claim Link
+                  </button>
+                  <p className="text-xs text-gray-400">💡 Send this link to the recipient for one-click claiming!</p>
+                </div>
+              </div>
+            )}
+
             {/* Next Steps */}
             <div className="bg-blue-900/30 rounded p-3">
-              <p className="text-blue-300 font-medium mb-2">📤 Next Steps:</p>
+              <p className="text-blue-300 font-medium mb-2">📤 Alternative Instructions:</p>
               <div className="space-y-1 text-gray-300 text-xs">
-                <p>1. Share Deposit ID <span className="font-mono text-blue-300">#{txResult.depositId}</span> with recipient</p>
-                <p>2. Share password <span className="font-mono text-purple-300">{formData.password}</span> with recipient</p>
-                <p>3. Recipient uses Claim tab to get their ETH</p>
+                <p>1. Send Deposit ID <span className="font-mono text-blue-300">#{txResult.depositId}</span> to recipient</p>
+                <p>2. Send password <span className="font-mono text-purple-300">{txResult.formData?.password || formData.password}</span> to recipient</p>
+                <p>3. Recipient goes to SafeSend Claim tab and enters both</p>
                 <p>4. You can cancel anytime in Reclaim tab if needed</p>
               </div>
             </div>

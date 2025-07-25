@@ -13,8 +13,21 @@ import SendPage from './pages/SendPage'
 import ClaimPage from './pages/ClaimPage'
 import ReclaimPage from './pages/ReclaimPage'
 import HistoryPage from './pages/HistoryPage'
+import ShareableClaimPage from './pages/ShareableClaimPage'
 
 function App() {
+  // Check for shareable claim link parameters
+  const getShareableClaimParams = () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const depositId = urlParams.get('deposit')
+    const password = urlParams.get('password')
+    
+    if (depositId && password) {
+      return { depositId, password }
+    }
+    return null
+  }
+
   // Get initial tab from URL or default to 'send'
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -23,6 +36,7 @@ function App() {
     return validTabs.includes(tabFromUrl) ? tabFromUrl : TAB_NAMES.SEND
   }
 
+  const [shareableClaimParams, setShareableClaimParams] = useState(getShareableClaimParams())
   const [activeTab, setActiveTab] = useState(getInitialTab())
 
   // Function to update URL when tab changes
@@ -146,7 +160,16 @@ function App() {
         sendForm.amount
       )
 
-      setTxResult(result)
+      // Store form data with result for shareable link generation
+      setTxResult({
+        ...result,
+        formData: {
+          recipient: sendForm.recipient,
+          password: sendForm.password,
+          amount: sendForm.amount,
+          expiryMinutes: sendForm.expiryMinutes
+        }
+      })
 
       // Reset form on success
       setSendForm({
@@ -531,12 +554,28 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       const newTab = getInitialTab()
+      const newShareableParams = getShareableClaimParams()
       setActiveTab(newTab)
+      setShareableClaimParams(newShareableParams)
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
+
+  // Handle URL parameter changes for claim tab pre-filling
+  useEffect(() => {
+    if (activeTab === TAB_NAMES.CLAIM && !shareableClaimParams) {
+      const urlParams = new URLSearchParams(window.location.search)
+      const depositId = urlParams.get('deposit')
+      const password = urlParams.get('password')
+      
+      if (depositId && password) {
+        // Pre-fill the claim password for this deposit
+        setClaimPasswords(prev => ({ ...prev, [depositId]: password }))
+      }
+    }
+  }, [activeTab, shareableClaimParams])
 
   // Memoized filtered deposits to avoid recalculating on every render
   const filteredDeposits = useMemo(() => {
@@ -580,6 +619,20 @@ function App() {
   // Show loading screen during app initialization
   if (appLoading) {
     return <AppLoader />
+  }
+
+  // If shareable claim link detected, show standalone claim page
+  if (shareableClaimParams) {
+    return (
+      <ShareableClaimPage
+        depositId={shareableClaimParams.depositId}
+        password={shareableClaimParams.password}
+        walletState={walletState}
+        connectMetaMask={connectMetaMask}
+        WalletConnect={WalletConnect}
+        onWalletConnectionChange={handleWalletConnectionChange}
+      />
+    )
   }
 
   return (

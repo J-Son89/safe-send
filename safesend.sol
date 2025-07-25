@@ -146,9 +146,9 @@ contract SafeSend {
         require(deposit.depositor != address(0), "Deposit does not exist");
         
         emit DebugLog("Step 2: Deposit exists");
-        require(msg.sender == deposit.recipient, "Only recipient can claim");
+        require(msg.sender == deposit.recipient || msg.sender == deposit.depositor, "Only recipient or depositor can claim");
         
-        emit DebugLog("Step 3: Sender is recipient");
+        emit DebugLog("Step 3: Sender is recipient or depositor");
         require(!deposit.claimed, "Already claimed");
         
         emit DebugLog("Step 4: Not already claimed");
@@ -174,11 +174,12 @@ contract SafeSend {
         
         emit DebugLog("Step 8: About to transfer");
         
-        (bool success, ) = payable(deposit.recipient).call{value: amount}("");
+        // Transfer to the person claiming (either recipient or depositor)
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
         require(success, "Transfer failed");
         
         emit DebugLog("Step 9: Transfer successful");
-        emit FundsClaimed(depositId, deposit.recipient, amount);
+        emit FundsClaimed(depositId, msg.sender, amount);
     }
     
     /**
